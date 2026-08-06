@@ -1,0 +1,197 @@
+// HomeService backend schema.
+// DEV: sqlite. PROD: change provider to "postgresql" and set DATABASE_URL.
+// Kept portable: no enums / no scalar-arrays (status etc. are Strings;
+// list data is stored as JSON strings) so the same schema works on both.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String          @id @default(cuid())
+  name           String
+  phone          String?         @unique
+  email          String?         @unique
+  firebaseUid    String?         @unique
+  role           String          @default("client") // client | pro | admin
+  location       String          @default("")
+  avatarUrl      String?         // data URI or hosted URL
+  gender         String?
+  dob            String?
+  addresses      Address[]
+  paymentMethods PaymentMethod[]
+  bookings       Booking[]
+  pushTokens     PushToken[]
+  notifications  Notification[]
+  cleaner        Cleaner?
+  favorites      Favorite[]
+  createdAt      DateTime        @default(now())
+}
+
+model Favorite {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cleanerId String
+  cleaner   Cleaner @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cleanerId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  icon      String   @default("bell")
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Address {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  line1     String
+  area      String
+  isDefault Boolean @default(false)
+}
+
+model PaymentMethod {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String  // bank | easypaisa | jazzcash | card
+  name      String
+  detail    String
+  isDefault Boolean @default(false)
+}
+
+model Service {
+  id            String    @id // slug e.g. "bathroom"
+  name          String
+  tagline       String
+  category      String
+  categoryColor String
+  categoryBg    String
+  basePrice     Int
+  unitLabel     String
+  unitNoun      String
+  duration      String
+  rating        Float
+  reviews       Int
+  icon          String
+  gradientStart String
+  gradientEnd   String
+  description   String
+  includedJson  String    @default("[]") // JSON array of strings
+  addOns        AddOn[]
+  bookings      Booking[]
+}
+
+model AddOn {
+  id        String  @id @default(cuid())
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  key       String  // stable id within a service, e.g. "window"
+  name      String
+  desc      String
+  price     Int
+}
+
+model Cleaner {
+  id         String    @id @default(cuid())
+  userId     String?   @unique          // the professional user who owns this profile
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name       String
+  initials   String
+  rating     Float
+  jobs       Int
+  distanceKm Float
+  bio        String?
+  preferred  Boolean   @default(false)
+  available  Boolean   @default(true)
+  withdrawn  Int       @default(0) // total earnings already withdrawn (PKR)
+  bookings   Booking[]
+  favoritedBy Favorite[]
+}
+
+model Booking {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId     String?
+  service       Service?       @relation(fields: [serviceId], references: [id])
+  serviceName   String
+  status        String         @default("confirmed") // confirmed|on_the_way|arrived|in_progress|completed|cancelled
+  scheduledType String         @default("now")        // now | later
+  dateLabel     String
+  timeLabel     String
+  address       String
+  quantity      Int            @default(1)
+  total         Int
+  cleanerId     String?
+  cleaner       Cleaner?       @relation(fields: [cleanerId], references: [id])
+  accepted      Boolean        @default(false) // cleaner accepted the job request
+  rating        Int?
+  review        String?
+  invoiceNo     String?
+  // Live location sharing (Yango-style): customer destination + cleaner live pos.
+  custLat       Float?
+  custLng       Float?
+  proLat        Float?
+  proLng        Float?
+  proAt         DateTime?
+  addOns        BookingAddOn[]
+  messages      Message[]
+  payment       Payment?
+  createdAt     DateTime       @default(now())
+}
+
+model BookingAddOn {
+  id        String  @id @default(cuid())
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  name      String
+  price     Int
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  bookingId  String
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  senderRole String   // client | cleaner
+  text       String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  method    String
+  amount    Int
+  txnId     String
+  status    String   @default("paid") // pending | paid | failed
+  // Bank Alfalah (MPGS) gateway fields
+  orderId          String?
+  sessionId        String?
+  successIndicator String?
+  createdAt DateTime @default(now())
+}
+
+model PushToken {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token    String @unique
+  platform String
+}

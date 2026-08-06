@@ -1,0 +1,39 @@
+# ── Dependencies ──
+node_modules/
+
+# ── Stray duplicate server copy inside client (not used) ──
+client/server/
+
+# ── Secrets / environment (NEVER commit) ──
+.env
+.env.*
+!.env.example
+
+# ── Databases (local dev) ──
+*.db
+*.db-journal
+*.sqlite
+prisma/*.db
+
+# ── Expo / React Native build output ──
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+*.orig.*
+
+# ── Logs ──
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# ── OS / editor ──
+.DS_Store
+Thumbs.db
+.idea/

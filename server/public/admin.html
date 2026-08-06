@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HomeService · Admin</title>
+<style>
+  :root {
+    --teal:#0B7C82; --teal-50:#E6F4F4; --orange:#F39C12;
+    --ink:#1F2937; --muted:#6B7280; --faint:#9CA3AF;
+    --line:#EDF0F2; --bg:#F7F9FA; --card:#FFFFFF; --ok:#16A34A; --warn:#D97706; --red:#DC2626;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased; }
+  a { color:inherit; text-decoration:none; }
+
+  /* Login */
+  #login { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); z-index:50; }
+  .login-card { background:#fff; border:1px solid var(--line); border-radius:18px; padding:36px 32px; width:360px; box-shadow:0 10px 40px rgba(0,0,0,.05); }
+  .logo { display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+  .logo .mark { width:38px; height:38px; border-radius:10px; background:var(--teal); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; }
+  .logo b { font-size:17px; } .logo span { color:var(--muted); font-size:13px; }
+  input { width:100%; height:46px; border:1.5px solid var(--line); border-radius:11px; padding:0 14px; font-size:14px; outline:none; }
+  input:focus { border-color:var(--teal); }
+  button { cursor:pointer; border:none; font-family:inherit; }
+  .btn { width:100%; height:46px; background:var(--teal); color:#fff; border-radius:11px; font-weight:700; font-size:14px; margin-top:14px; }
+  .btn:hover { background:#0a6d72; }
+  .err { color:var(--red); font-size:12.5px; margin-top:10px; min-height:16px; }
+
+  /* Layout */
+  #app { display:none; min-height:100vh; }
+  .sidebar { position:fixed; top:0; left:0; bottom:0; width:230px; background:#fff; border-right:1px solid var(--line); padding:22px 16px; }
+  .nav-item { display:flex; align-items:center; gap:11px; padding:11px 13px; border-radius:10px; color:var(--muted); font-size:14px; font-weight:600; cursor:pointer; margin-bottom:3px; }
+  .nav-item:hover { background:var(--bg); color:var(--ink); }
+  .nav-item.active { background:var(--teal-50); color:var(--teal); }
+  .nav-item .ic { width:18px; text-align:center; }
+  .main { margin-left:230px; padding:28px 34px; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  .topbar h1 { font-size:22px; letter-spacing:-.4px; }
+  .topbar .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+  .refresh { background:#fff; border:1px solid var(--line); color:var(--muted); border-radius:9px; padding:8px 14px; font-size:13px; font-weight:600; }
+  .refresh:hover { border-color:var(--teal); color:var(--teal); }
+
+  /* Cards */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:26px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:15px; padding:18px 18px; }
+  .stat .label { color:var(--faint); font-size:11px; letter-spacing:1px; text-transform:uppercase; font-weight:700; }
+  .stat .value { font-size:28px; font-weight:800; letter-spacing:-.5px; margin-top:8px; }
+  .stat .value small { font-size:14px; color:var(--muted); font-weight:600; }
+  .stat.accent .value { color:var(--teal); }
+
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:15px; overflow:hidden; }
+  .panel h3 { font-size:14px; padding:16px 18px; border-bottom:1px solid var(--line); }
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-size:11px; letter-spacing:.6px; text-transform:uppercase; color:var(--faint); font-weight:700; padding:12px 18px; border-bottom:1px solid var(--line); }
+  td { padding:13px 18px; font-size:13.5px; border-bottom:1px solid var(--line); color:var(--ink); }
+  tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--bg); }
+  .tag { display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; }
+  .t-green { background:#E9F7EF; color:var(--ok); } .t-teal { background:var(--teal-50); color:var(--teal); }
+  .t-orange { background:#FEF3E2; color:var(--warn); } .t-gray { background:#F1F3F5; color:var(--muted); } .t-red{ background:#FDECEC; color:var(--red); }
+  .muted { color:var(--muted); } .mono { font-variant-numeric:tabular-nums; }
+  .empty { padding:44px; text-align:center; color:var(--faint); font-size:14px; }
+  .search { height:38px; border:1px solid var(--line); border-radius:9px; padding:0 12px; font-size:13px; width:240px; }
+  .search:focus { border-color:var(--teal); outline:none; }
+  .rowline { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .avatar { display:inline-flex; width:26px; height:26px; border-radius:50%; background:var(--teal-50); color:var(--teal); font-size:10px; font-weight:800; align-items:center; justify-content:center; margin-right:8px; vertical-align:middle; }
+  .add { background:var(--teal); color:#fff; border-radius:9px; padding:9px 16px; font-size:13px; font-weight:700; }
+  .add:hover { background:#0a6d72; }
+  .ghost { background:#fff; border:1px solid var(--line); color:var(--muted); border-radius:9px; padding:9px 16px; font-size:13px; font-weight:600; }
+  .del { background:#FDECEC; color:var(--red); border-radius:7px; padding:5px 11px; font-size:12px; font-weight:700; }
+  .del:hover { background:#f9d7d7; }
+  .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:60; padding:20px; }
+  .modal-card { background:#fff; border-radius:16px; width:460px; max-width:100%; max-height:90vh; overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+  .modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--line); font-size:15px; }
+  .modal-body { padding:18px 20px; }
+  .modal-body label { display:block; font-size:12px; font-weight:700; color:var(--muted); margin:12px 0 6px; }
+  .modal-body input, .modal-body textarea { width:100%; border:1.5px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13.5px; font-family:inherit; outline:none; }
+  .modal-body input:focus, .modal-body textarea:focus { border-color:var(--teal); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .modal-foot { display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; border-top:1px solid var(--line); }
+  @media (max-width:720px){ .sidebar{display:none} .main{margin-left:0;padding:18px} .grid2{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login">
+  <div class="login-card">
+    <div class="logo"><div class="mark">HS</div><div><b>HomeService</b><br><span>Admin Portal</span></div></div>
+    <input id="pass" type="password" placeholder="Admin passcode" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="btn" onclick="doLogin()">Sign in</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="logo" style="margin-bottom:26px;padding:0 6px"><div class="mark">HS</div><div><b>HomeService</b><br><span style="font-size:12px">Admin</span></div></div>
+    <div class="nav-item active" data-tab="overview" onclick="go('overview')"><span class="ic">▦</span> Overview</div>
+    <div class="nav-item" data-tab="bookings" onclick="go('bookings')"><span class="ic">▤</span> Bookings</div>
+    <div class="nav-item" data-tab="cleaners" onclick="go('cleaners')"><span class="ic">◍</span> Cleaners</div>
+    <div class="nav-item" data-tab="customers" onclick="go('customers')"><span class="ic">◎</span> Customers</div>
+    <div class="nav-item" data-tab="services" onclick="go('services')"><span class="ic">▣</span> Services</div>
+    <div class="nav-item" data-tab="payments" onclick="go('payments')"><span class="ic">₨</span> Payments</div>
+    <div class="nav-item" style="margin-top:20px;color:var(--red)" onclick="logout()"><span class="ic">⎋</span> Sign out</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div><h1 id="title">Overview</h1><div class="sub" id="subtitle">All platform data, live</div></div>
+      <button class="refresh" onclick="load()">↻ Refresh</button>
+    </div>
+    <div id="content"></div>
+  </main>
+</div>
+
+<!-- Create service modal -->
+<div id="modal" class="modal">
+  <div class="modal-card">
+    <div class="modal-head"><b>New service</b><span onclick="closeModal()" style="cursor:pointer;color:var(--faint);font-size:20px">×</span></div>
+    <div class="modal-body">
+      <label>Name *</label><input id="f_name" placeholder="e.g. Sofa Cleaning" />
+      <div class="grid2">
+        <div><label>Category</label><input id="f_cat" placeholder="e.g. Deep Clean" /></div>
+        <div><label>Base price (PKR)</label><input id="f_price" type="number" placeholder="2500" /></div>
+      </div>
+      <div class="grid2">
+        <div><label>Unit noun</label><input id="f_unit" placeholder="room / sofa / service" /></div>
+        <div><label>Duration</label><input id="f_dur" placeholder="1-2 hrs" /></div>
+      </div>
+      <label>Tagline</label><input id="f_tag" placeholder="Short one-liner" />
+      <label>Description</label><textarea id="f_desc" rows="2" placeholder="What this service includes"></textarea>
+      <label>What's included (one per line)</label><textarea id="f_incl" rows="3" placeholder="Deep scrub&#10;Sanitisation&#10;Supplies included"></textarea>
+      <div class="err" id="svcErr"></div>
+    </div>
+    <div class="modal-foot"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveService()">Create service</button></div>
+  </div>
+</div>
+
+<!-- Assign cleaner modal -->
+<div id="assignModal" class="modal">
+  <div class="modal-card">
+    <div class="modal-head"><b>Assign a cleaner</b><span onclick="closeAssign()" style="cursor:pointer;color:var(--faint);font-size:20px">×</span></div>
+    <div class="modal-body" style="max-height:60vh;overflow:auto"><div id="assignList"></div></div>
+  </div>
+</div>
+
+<!-- New cleaner modal -->
+<div id="clnModal" class="modal">
+  <div class="modal-card">
+    <div class="modal-head"><b>New cleaner</b><span onclick="closeCleanerModal()" style="cursor:pointer;color:var(--faint);font-size:20px">×</span></div>
+    <div class="modal-body">
+      <label>Name *</label><input id="c_name" placeholder="e.g. Imran Malik" />
+      <div class="grid2">
+        <div><label>Distance (km)</label><input id="c_dist" type="number" placeholder="2" /></div>
+        <div></div>
+      </div>
+      <label>Bio</label><textarea id="c_bio" rows="2" placeholder="Specialist in deep cleaning…"></textarea>
+      <div class="err" id="clnErr"></div>
+    </div>
+    <div class="modal-foot"><button class="ghost" onclick="closeCleanerModal()">Cancel</button><button class="add" onclick="saveCleaner()">Create cleaner</button></div>
+  </div>
+</div>
+
+<script>
+  const API = location.origin;
+  let KEY = localStorage.getItem('hs_admin_key') || '';
+  let TAB = 'overview';
+  const fmtPKR = (n) => 'PKR ' + (n||0).toLocaleString('en-PK');
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-PK',{day:'numeric',month:'short'}) : '—';
+  const esc = (s) => String(s??'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const initials = (n) => (n||'?').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
+
+  const STATUS_TAG = {
+    confirmed:'t-teal', on_the_way:'t-orange', arrived:'t-orange', in_progress:'t-orange',
+    completed:'t-green', cancelled:'t-red',
+  };
+  const statusTag = (s) => `<span class="tag ${STATUS_TAG[s]||'t-gray'}">${esc((s||'').replace(/_/g,' '))}</span>`;
+
+  async function api(pathname) {
+    const r = await fetch(API + pathname, { headers: { 'x-admin-key': KEY } });
+    if (r.status === 401) { logout(); throw new Error('unauthorized'); }
+    return r.json();
+  }
+
+  async function doLogin() {
+    const pass = document.getElementById('pass').value.trim();
+    const err = document.getElementById('loginErr');
+    err.textContent = '';
+    try {
+      const r = await fetch(API + '/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: pass }) });
+      if (!r.ok) { err.textContent = 'Wrong passcode. Try again.'; return; }
+      KEY = pass; localStorage.setItem('hs_admin_key', KEY);
+      showApp();
+    } catch { err.textContent = 'Could not reach the server.'; }
+  }
+  function logout() { KEY=''; localStorage.removeItem('hs_admin_key'); document.getElementById('app').style.display='none'; document.getElementById('login').style.display='flex'; }
+  function showApp() { document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; load(); }
+
+  function go(tab) {
+    TAB = tab;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab===tab));
+    const titles = { overview:['Overview','All platform data, live'], bookings:['Bookings','Every booking across the platform'], cleaners:['Cleaners','Registered professionals'], customers:['Customers','Registered customers'], services:['Services','Service catalogue & pricing'], payments:['Payments','Transactions & revenue'] };
+    document.getElementById('title').textContent = titles[tab][0];
+    document.getElementById('subtitle').textContent = titles[tab][1];
+    load();
+  }
+
+  const C = () => document.getElementById('content');
+  const loading = () => C().innerHTML = '<div class="empty">Loading…</div>';
+  const table = (cols, rows) => rows.length ? `<div class="panel"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>` : '<div class="panel"><div class="empty">Nothing here yet.</div></div>';
+
+  async function load() {
+    loading();
+    try {
+      if (TAB==='overview') return renderOverview(await api('/admin/overview'));
+      if (TAB==='bookings') return renderBookings(await api('/admin/bookings'));
+      if (TAB==='cleaners') return renderCleaners(await api('/admin/cleaners'));
+      if (TAB==='customers') return renderCustomers(await api('/admin/customers'));
+      if (TAB==='services') return renderServices(await api('/admin/services'));
+      if (TAB==='payments') return renderPayments(await api('/admin/payments'));
+    } catch(e) { if(e.message!=='unauthorized') C().innerHTML='<div class="empty">Failed to load.</div>'; }
+  }
+
+  function renderOverview(d) {
+    const stat = (label,val,accent) => `<div class="stat ${accent?'accent':''}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
+    const stats = `<div class="stats">
+      ${stat('Revenue', fmtPKR(d.revenue), true)}
+      ${stat('Bookings', d.bookings)}
+      ${stat('Active now', d.active)}
+      ${stat('Completed', d.completed)}
+      ${stat('Customers', d.customers)}
+      ${stat('Cleaners', d.cleaners)}
+      ${stat('Services', d.services)}
+    </div>`;
+    const rows = (d.recent||[]).map(b => `<tr>
+      <td class="mono">${esc(b.id.slice(-6))}</td>
+      <td>${esc(b.service)}</td>
+      <td>${b.cleaner?`<span class="avatar">${initials(b.cleaner.name)}</span>${esc(b.cleaner.name)}`:'<span class="muted">Unassigned</span>'}</td>
+      <td>${statusTag(b.status)}</td>
+      <td class="mono">${fmtPKR(b.total)}</td>
+      <td class="muted">${fmtDate(b.createdAt)}</td>
+    </tr>`);
+    C().innerHTML = stats + '<div class="rowline"><h3 style="font-size:15px">Recent bookings</h3></div>' + table(['ID','Service','Cleaner','Status','Amount','Date'], rows);
+  }
+
+  let _rows = [], _cols = [], _render = null;
+  function withSearch(placeholder, cols, rows, renderRow) {
+    _rows = rows; _cols = cols; _render = renderRow;
+    C().innerHTML = `<div class="rowline"><input class="search" placeholder="${placeholder}" oninput="filter(this.value)"><span class="muted" id="count">${rows.length} total</span></div><div id="tbl"></div>`;
+    paint(rows);
+  }
+  function paint(rows){ document.getElementById('tbl').innerHTML = table(_cols, rows.map(_render)); document.getElementById('count').textContent = rows.length+' shown'; }
+  function filter(q){ q=q.toLowerCase().trim(); paint(!q?_rows:_rows.filter(r=>JSON.stringify(r).toLowerCase().includes(q))); }
+
+  function renderBookings(list) {
+    withSearch('Search bookings…', ['ID','Customer','Service','Cleaner','Type','Status','Amount','Date',''], list, b => `<tr>
+      <td class="mono">${esc(b.id.slice(-6))}</td>
+      <td>${esc(b.customer)}</td>
+      <td>${esc(b.service)}</td>
+      <td>${b.cleaner?esc(b.cleaner.name):'<span class="muted">—</span>'}</td>
+      <td><span class="tag ${b.scheduledType==='later'?'t-gray':'t-teal'}">${b.scheduledType==='later'?'Scheduled':'Instant'}</span></td>
+      <td>${statusTag(b.status)}</td>
+      <td class="mono">${fmtPKR(b.total)}</td>
+      <td class="muted">${fmtDate(b.createdAt)}</td>
+      <td style="white-space:nowrap">${['completed','cancelled'].includes(b.status)?'':`<button class="ghost" style="padding:5px 10px;font-size:12px" onclick="openAssign('${esc(b.id)}')">${b.cleaner?'Reassign':'Assign'}</button> <button class="del" onclick="cancelBooking('${esc(b.id)}')">Cancel</button>`}</td></tr>`);
+  }
+  function renderCleaners(list) {
+    const rows = list.map(c => `<tr>
+      <td><span class="avatar">${esc(c.initials)}</span>${esc(c.name)}</td>
+      <td class="mono">${c.rating? '★ '+c.rating : '<span class="muted">New</span>'}</td>
+      <td class="mono">${c.completed}</td>
+      <td class="mono">${c.distanceKm} km</td>
+      <td><span class="tag ${c.available?'t-green':'t-gray'}">${c.available?'Online':'Offline'}</span></td>
+      <td><span class="tag ${c.userLinked?'t-teal':'t-gray'}">${c.userLinked?'Real pro':'Demo'}</span></td>
+      <td style="white-space:nowrap"><button class="ghost" style="padding:5px 10px;font-size:12px" onclick="toggleCleaner('${esc(c.id)}')">${c.available?'Set offline':'Set online'}</button> <button class="del" onclick="delCleaner('${esc(c.id)}','${esc(c.name)}')">Remove</button></td></tr>`);
+    C().innerHTML = `<div class="rowline"><span class="muted">${list.length} cleaners</span><button class="add" onclick="openCleanerModal()">+ New cleaner</button></div>` + table(['Cleaner','Rating','Jobs done','Distance','Status','Type',''], rows);
+  }
+  async function cancelBooking(id){ if(!confirm('Cancel this booking? The customer will be notified.'))return; const r=await fetch(API+'/admin/bookings/'+id+'/cancel',{method:'POST',headers:{'x-admin-key':KEY}}); if(!r.ok){alert('Could not cancel.');return;} load(); }
+  async function toggleCleaner(id){ const r=await fetch(API+'/admin/cleaners/'+id+'/toggle',{method:'POST',headers:{'x-admin-key':KEY}}); if(!r.ok){alert('Could not update.');return;} load(); }
+  async function delCleaner(id,name){ if(!confirm('Remove cleaner "'+name+'"? Their bookings will be unassigned.'))return; const r=await fetch(API+'/admin/cleaners/'+id,{method:'DELETE',headers:{'x-admin-key':KEY}}); if(!r.ok){alert('Could not remove.');return;} load(); }
+
+  // Assign a cleaner to a booking
+  let _assignBooking=null;
+  async function openAssign(id){ _assignBooking=id; document.getElementById('assignModal').style.display='flex'; document.getElementById('assignList').innerHTML='<div class="muted" style="padding:12px">Loading cleaners…</div>'; try{ const list=await api('/admin/cleaners'); document.getElementById('assignList').innerHTML = list.length? list.map(c=>`<div class="pickrow" onclick="assignTo('${esc(c.id)}')"><span class="avatar">${esc(c.initials)}</span><div style="flex:1"><b>${esc(c.name)}</b><br><span class="muted" style="font-size:12px">${c.available?'online':'offline'} · ${c.distanceKm}km · ${c.rating?('★'+c.rating):'new'} · ${c.userLinked?'real pro':'demo'}</span></div></div>`).join('') : '<div class="muted" style="padding:12px">No cleaners. Add one in the Cleaners tab.</div>'; }catch{ document.getElementById('assignList').innerHTML='<div class="muted" style="padding:12px">Failed to load.</div>'; } }
+  function closeAssign(){ document.getElementById('assignModal').style.display='none'; }
+  async function assignTo(cid){ const r=await fetch(API+'/admin/bookings/'+_assignBooking+'/assign',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':KEY},body:JSON.stringify({cleanerId:cid})}); if(!r.ok){alert('Could not assign.');return;} closeAssign(); load(); }
+
+  // Create a cleaner (resource)
+  function openCleanerModal(){ document.getElementById('clnModal').style.display='flex'; document.getElementById('clnErr').textContent=''; }
+  function closeCleanerModal(){ document.getElementById('clnModal').style.display='none'; }
+  async function saveCleaner(){ const g=id=>document.getElementById(id).value.trim(); const body={name:g('c_name'),distanceKm:Number(g('c_dist'))||1,bio:g('c_bio')}; const err=document.getElementById('clnErr'); if(!body.name){err.textContent='Cleaner name is required.';return;} try{ const r=await fetch(API+'/admin/cleaners',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':KEY},body:JSON.stringify(body)}); if(!r.ok){const j=await r.json().catch(()=>({}));err.textContent=j.error||'Could not create.';return;} closeCleanerModal(); load(); }catch{ err.textContent='Network error.'; } }
+  function renderCustomers(list) {
+    withSearch('Search customers…', ['Customer','Phone','Email','Location','Bookings','Joined'], list, u => `<tr>
+      <td><span class="avatar">${initials(u.name)}</span>${esc(u.name)}</td>
+      <td class="mono">${esc(u.phone)}</td>
+      <td class="muted">${esc(u.email)}</td>
+      <td>${esc(u.location)}</td>
+      <td class="mono">${u.bookings}</td>
+      <td class="muted">${fmtDate(u.joined)}</td></tr>`);
+  }
+  function renderServices(list) {
+    const rows = list.map(s => `<tr>
+      <td><b>${esc(s.name)}</b><br><span class="muted" style="font-size:12px">${esc(s.tagline||'')}</span></td>
+      <td><span class="tag t-teal">${esc(s.category)}</span></td>
+      <td class="mono">${fmtPKR(s.basePrice)}</td>
+      <td class="muted">${esc(s.unitNoun||'')}</td>
+      <td class="mono">★ ${s.rating} (${s.reviews})</td>
+      <td class="mono">${(s.addOns||[]).length}</td>
+      <td><button class="del" onclick="delService('${esc(s.id)}','${esc(s.name)}')">Delete</button></td></tr>`);
+    C().innerHTML = `<div class="rowline">
+        <span class="muted">${list.length} services</span>
+        <button class="add" onclick="openServiceModal()">+ New service</button>
+      </div>` + table(['Service','Category','Base price','Unit','Rating','Add-ons',''], rows);
+  }
+
+  function openServiceModal() { document.getElementById('modal').style.display='flex'; document.getElementById('svcErr').textContent=''; }
+  function closeModal() { document.getElementById('modal').style.display='none'; }
+  async function saveService() {
+    const g = (id) => document.getElementById(id).value.trim();
+    const body = {
+      name: g('f_name'), category: g('f_cat'), basePrice: Number(g('f_price'))||0,
+      unitNoun: g('f_unit')||'service', duration: g('f_dur'), tagline: g('f_tag'),
+      description: g('f_desc'), included: g('f_incl'),
+    };
+    const err = document.getElementById('svcErr');
+    if (!body.name) { err.textContent='Service name is required.'; return; }
+    try {
+      const r = await fetch(API+'/admin/services', { method:'POST', headers:{'Content-Type':'application/json','x-admin-key':KEY}, body: JSON.stringify(body) });
+      if (!r.ok) { const j=await r.json().catch(()=>({})); err.textContent = j.error || 'Could not create service.'; return; }
+      closeModal(); load();
+    } catch { err.textContent='Network error.'; }
+  }
+  async function delService(id, name) {
+    if (!confirm('Delete service "'+name+'"? This cannot be undone.')) return;
+    const r = await fetch(API+'/admin/services/'+id, { method:'DELETE', headers:{'x-admin-key':KEY} });
+    if (!r.ok) { const j=await r.json().catch(()=>({})); alert(j.error||'Could not delete.'); return; }
+    load();
+  }
+  function renderPayments(list) {
+    withSearch('Search payments…', ['Txn','Customer','Service','Method','Amount','Status','Date'], list, p => `<tr>
+      <td class="mono">${esc(p.txnId)}</td>
+      <td>${esc(p.customer)}</td>
+      <td>${esc(p.service)}</td>
+      <td><span class="tag t-gray">${esc(p.method)}</span></td>
+      <td class="mono">${fmtPKR(p.amount)}</td>
+      <td>${statusTag(p.status)}</td>
+      <td class="muted">${fmtDate(p.createdAt)}</td></tr>`);
+  }
+
+  // Auto-login if key stored.
+  if (KEY) { fetch(API+'/admin/overview',{headers:{'x-admin-key':KEY}}).then(r=>{ if(r.ok) showApp(); }); }
+</script>
+</body>
+</html>
