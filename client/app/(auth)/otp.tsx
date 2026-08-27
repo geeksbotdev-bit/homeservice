@@ -11,13 +11,14 @@ import { confirmOtp } from '../../src/services/phoneAuth';
 
 export default function Otp() {
   const router = useRouter();
-  const { phone, role, fb } = useLocalSearchParams<{ phone?: string; role?: string; fb?: string }>();
+  const { phone, role, fb, dev } = useLocalSearchParams<{ phone?: string; role?: string; fb?: string; dev?: string }>();
   const isFirebaseOtp = fb === '1';
-  const LENGTH = isFirebaseOtp ? 6 : 4; // Firebase SMS codes are 6 digits
+  const LENGTH = 6; // 6-digit codes (backend + Firebase)
   const [digits, setDigits] = useState<string[]>(Array(LENGTH).fill(''));
-  const [seconds, setSeconds] = useState(42);
+  const [seconds, setSeconds] = useState(60);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [devCode, setDevCode] = useState<string>(typeof dev === 'string' ? dev : '');
   const inputs = useRef<(TextInput | null)[]>([]);
 
   // Compact sizing so 6 boxes fit the phone width cleanly.
@@ -80,6 +81,19 @@ export default function Otp() {
     }
   }
 
+  async function resend() {
+    setError(null);
+    setDigits(Array(LENGTH).fill(''));
+    try {
+      const r: any = await auth.requestOtp('+92' + (phone ?? ''));
+      if (r?.devCode) setDevCode(r.devCode);
+      setSeconds(60);
+      inputs.current[0]?.focus();
+    } catch {
+      setError('Could not resend the code. Please try again.');
+    }
+  }
+
   const mins = Math.floor(seconds / 60);
   const secs = String(seconds % 60).padStart(2, '0');
 
@@ -104,6 +118,14 @@ export default function Otp() {
             <Feather name="edit-2" size={11} color={colors.white} />
           </View>
         </Pressable>
+
+        {/* Dev-mode hint (no SMS gateway yet) — tap to auto-fill */}
+        {!!devCode && (
+          <Pressable onPress={() => setDigits(devCode.padEnd(LENGTH, '').slice(0, LENGTH).split(''))} style={styles.devHint}>
+            <Feather name="info" size={12} color={colors.primary700} />
+            <Text variant="bodySm" weight="semibold" color={colors.primary700} style={{ fontSize: 12 }}>Test code: {devCode} — tap to fill</Text>
+          </Pressable>
+        )}
 
         {/* OTP boxes */}
         <View style={[styles.boxes, { gap: boxGap }]}>
@@ -143,7 +165,7 @@ export default function Otp() {
               Resend code in <Text weight="bold" color={colors.textSecondary}>{mins}:{secs}</Text>
             </Text>
           ) : (
-            <Pressable onPress={() => setSeconds(42)}>
+            <Pressable onPress={resend}>
               <Text variant="bodySm" weight="semibold" color={colors.primary}>Resend code</Text>
             </Pressable>
           )}
@@ -186,7 +208,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
   body: { flex: 1, paddingHorizontal: 28, paddingTop: 16, alignItems: 'center' },
   iconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.primary50, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderRadius: 24, paddingVertical: 8, paddingHorizontal: 16, marginBottom: 32 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderRadius: 24, paddingVertical: 8, paddingHorizontal: 16, marginBottom: 14 },
+  devHint: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary50, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 18 },
   chipEdit: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   boxes: { flexDirection: 'row', marginBottom: 12, width: '100%' },
   box: {

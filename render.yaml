@@ -1,0 +1,33 @@
+# Render Blueprint — deploys the HomeService backend (public HTTPS).
+# One-click: Render Dashboard → New → Blueprint → connect the GitHub repo.
+# SELF_URL auto-resolves from RENDER_EXTERNAL_URL, so Bank Alfalah gets a
+# public returnUrl and the card page renders + returns correctly.
+services:
+  - type: web
+    name: homeservice-api
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install && npx prisma generate && npx prisma db push --accept-data-loss && npx tsx prisma/seed.ts
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true            # Render generates a strong secret
+      - key: ADMIN_KEY
+        value: homeservice-admin       # change for production
+      - key: DATABASE_URL
+        value: file:./dev.db           # SQLite (resets on redeploy). Swap for Postgres for persistence.
+      - key: BAFL_MERCHANT_ID
+        value: TESTCHASKA
+      - key: BAFL_API_PASSWORD
+        sync: false                    # set this in the Render dashboard (secret)
+      - key: BAFL_BASE_URL
+        value: https://test-bankalfalah.gateway.mastercard.com
+      - key: BAFL_API_VERSION
+        value: "100"
+      - key: FIREBASE_PROJECT_ID
+        value: homeservice-76156
+      - key: CLIENT_URL
+        value: http://localhost:8081   # where to return the user after payment (your app)
+      # SELF_URL is intentionally omitted — it auto-detects RENDER_EXTERNAL_URL.

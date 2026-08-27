@@ -34,6 +34,7 @@ export function serializeCleaner(c: any) {
     bio: c.bio ?? undefined,
     preferred: c.preferred ?? undefined,
     available: c.available ?? undefined,
+    phone: c.user?.phone ?? undefined,
   };
 }
 

@@ -11,9 +11,11 @@ import type { Service, Cleaner, Booking, Conversation, ChatMessage, User, AppNot
 
 // ─── Auth ──────────────────────────────────────────────────────────────
 export const auth = {
-  // POST /auth/request-otp { phone }
+  // POST /auth/request-otp { phone } -> { ok, ttl, devCode? }
   requestOtp: (phone: string) =>
-    USE_MOCKS ? delay({ ok: true, ttl: 42 }) : request('/auth/request-otp', { method: 'POST', body: { phone } }),
+    USE_MOCKS
+      ? delay({ ok: true, ttl: 300, devCode: '123456' })
+      : request<{ ok: boolean; ttl: number; devCode?: string }>('/auth/request-otp', { method: 'POST', body: { phone } }),
 
   // POST /auth/verify-otp { phone, code, role } -> { token, user, isNew }
   verifyOtp: (phone: string, code: string, role: 'client' | 'professional' = 'client') =>
@@ -134,7 +136,7 @@ export const cleaners = {
 };
 
 // ─── Messaging ─────────────────────────────────────────────────────────
-export interface ChatMeta { name: string; initials: string; service: string; status: string }
+export interface ChatMeta { name: string; initials: string; phone?: string; service: string; status: string }
 export interface ProReview { rating: number; review: string; service: string; date: string; customer: string }
 
 export const chat = {
@@ -247,13 +249,13 @@ export const pro = {
 export const payments = {
   // POST /payments { bookingId, method, amount } -> { ok, txnId, invoiceNo }
   // Real gateway (Easypaisa/JazzCash/bank/card) is wired here when keys arrive.
-  pay: (bookingId: string, method: string, amount: number) =>
-    USE_MOCKS
-      ? delay({ ok: true, txnId: 'TXN' + bookingId.replace(/\D/g, '').slice(-6), invoiceNo: 'INV-' + bookingId }, 1800)
-      : request<{ ok: boolean; txnId: string; invoiceNo: string }>('/payments', {
-          method: 'POST',
-          body: { bookingId, method, amount },
-        }),
+  pay: (bookingId: string, method: string, amount: number) => {
+    if (!USE_MOCKS) return request<{ ok: boolean; txnId: string; invoiceNo: string }>('/payments', { method: 'POST', body: { bookingId, method, amount } });
+    // Mock: activate the pending booking so the search/tracking flow proceeds.
+    const b = BOOKINGS.find((x) => x.id === bookingId);
+    if (b) { b.status = 'confirmed'; (b as any).accepted = true; if (!b.cleaner) b.cleaner = CLEANERS[0]; }
+    return delay({ ok: true, txnId: 'TXN' + bookingId.replace(/\D/g, '').slice(-6), invoiceNo: 'INV-' + bookingId }, 1200);
+  },
   // POST /payments/session -> Bank Alfalah (MPGS) Hosted Checkout launcher URL
   createSession: (bookingId: string) =>
     request<{ launchUrl: string; orderId: string; sessionId: string }>('/payments/session', {

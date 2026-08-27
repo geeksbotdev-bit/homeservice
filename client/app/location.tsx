@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +24,8 @@ const PK_AREAS: { city: string; areas: string[] }[] = [
 // Flattened "Area, City" options.
 const ALL_OPTIONS = PK_AREAS.flatMap((c) => c.areas.map((a) => `${a}, ${c.city}`));
 
+interface Place { display_name: string; lat: string; lon: string; address?: Record<string, string> }
+
 export default function LocationPicker() {
   const router = useRouter();
   const [me, setMe] = useState<User | null>(null);
@@ -31,8 +33,36 @@ export default function LocationPicker() {
   const [busy, setBusy] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locErr, setLocErr] = useState<string | null>(null);
+  const [results, setResults] = useState<Place[]>([]);
+  const [searching, setSearching] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { userApi.me().then(setMe); }, []);
+
+  // Live place search (OpenStreetMap Nominatim, Pakistan) — debounced dropdown.
+  useEffect(() => {
+    if (q.trim().length < 3) { setResults([]); setSearching(false); return; }
+    if (timer.current) clearTimeout(timer.current);
+    setSearching(true);
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=pk&addressdetails=1&limit=7&q=${encodeURIComponent(q)}`,
+          { headers: { 'Accept': 'application/json', 'User-Agent': 'HomeServiceApp/1.0' } },
+        );
+        const j = await r.json();
+        setResults(Array.isArray(j) ? j : []);
+      } catch { setResults([]); }
+      setSearching(false);
+    }, 450);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [q]);
+
+  function placeLabel(r: Place): string {
+    const a = r.address || {};
+    const parts = [a.road || a.neighbourhood || a.suburb, a.suburb || a.town, a.city || a.state].filter(Boolean);
+    return (parts.length ? parts.join(', ') : r.display_name.split(',').slice(0, 3).join(', ')).trim();
+  }
 
   // Detect the device's current location and reverse-geocode it to an address.
   async function useCurrentLocation() {
@@ -63,11 +93,6 @@ export default function LocationPicker() {
     }
   }
 
-  const filtered = useMemo(
-    () => ALL_OPTIONS.filter((o) => o.toLowerCase().includes(q.trim().toLowerCase())),
-    [q],
-  );
-
   async function choose(area: string) {
     if (busy) return;
     setBusy(true);
@@ -86,7 +111,7 @@ export default function LocationPicker() {
           <Feather name="search" size={17} color={colors.textDisabled} />
           <TextInput
             style={styles.input}
-            placeholder="Search city or area in Pakistan…"
+            placeholder="Search area, street or landmark…"
             placeholderTextColor={colors.textDisabled}
             value={q}
             onChangeText={setQ}
@@ -130,41 +155,59 @@ export default function LocationPicker() {
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 6, gap: 8 }} keyboardShouldPersistTaps="handled">
-          {/* Saved addresses (only when not searching) */}
-          {q.length === 0 && me.addresses.length > 0 && (
+          {q.trim().length >= 3 ? (
+            /* ── Live search results (dropdown) ── */
             <>
-              <Text variant="bodySm" weight="semibold" color={colors.textTertiary} style={styles.sectionLbl}>SAVED ADDRESSES</Text>
-              {me.addresses.map((a) => (
-                <Pressable key={a.id} onPress={() => choose(a.area)} style={[styles.row, me.location === a.area && styles.rowOn]}>
-                  <View style={styles.icon}><Feather name="home" size={16} color={colors.primary} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text weight="semibold" style={{ fontSize: 14 }}>{a.label} · {a.area}</Text>
-                    <Text variant="bodySm" color={colors.textTertiary}>{a.line1}</Text>
-                  </View>
-                  {me.location === a.area && <Feather name="check-circle" size={20} color={colors.primary} />}
-                </Pressable>
-              ))}
-              <Text variant="bodySm" weight="semibold" color={colors.textTertiary} style={styles.sectionLbl}>POPULAR AREAS</Text>
+              <Text variant="bodySm" weight="semibold" color={colors.textTertiary} style={styles.sectionLbl}>SEARCH RESULTS</Text>
+              {searching ? (
+                <ActivityIndicator color={colors.primary} style={{ paddingVertical: 24 }} />
+              ) : results.length === 0 ? (
+                <View style={{ alignItems: 'center', paddingVertical: 30, gap: 8 }}>
+                  <Feather name="map-pin" size={28} color={colors.border} />
+                  <Text color={colors.textDisabled}>No places match “{q}”</Text>
+                </View>
+              ) : (
+                results.map((r, i) => (
+                  <Pressable key={i} onPress={() => choose(placeLabel(r))} style={styles.row}>
+                    <View style={styles.icon}><Feather name="map-pin" size={16} color={colors.primary} /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text weight="semibold" style={{ fontSize: 14 }} numberOfLines={1}>{r.display_name.split(',')[0]}</Text>
+                      <Text variant="bodySm" color={colors.textTertiary} numberOfLines={1}>{r.display_name.split(',').slice(1, 4).join(', ').trim()}</Text>
+                    </View>
+                  </Pressable>
+                ))
+              )}
             </>
-          )}
-
-          {/* Area options */}
-          {filtered.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: 30, gap: 8 }}>
-              <Feather name="map-pin" size={28} color={colors.border} />
-              <Text color={colors.textDisabled}>No areas match “{q}”</Text>
-            </View>
           ) : (
-            filtered.map((opt) => {
-              const selected = me.location === opt;
-              return (
-                <Pressable key={opt} onPress={() => choose(opt)} style={[styles.row, selected && styles.rowOn]}>
-                  <View style={styles.icon}><Feather name="map-pin" size={16} color={colors.primary} /></View>
-                  <Text weight="semibold" style={{ flex: 1, fontSize: 14 }}>{opt}</Text>
-                  {selected && <Feather name="check-circle" size={20} color={colors.primary} />}
-                </Pressable>
-              );
-            })
+            /* ── Idle: saved addresses + popular quick-picks ── */
+            <>
+              {me.addresses.length > 0 && (
+                <>
+                  <Text variant="bodySm" weight="semibold" color={colors.textTertiary} style={styles.sectionLbl}>SAVED ADDRESSES</Text>
+                  {me.addresses.map((a) => (
+                    <Pressable key={a.id} onPress={() => choose(a.area)} style={[styles.row, me.location === a.area && styles.rowOn]}>
+                      <View style={styles.icon}><Feather name="home" size={16} color={colors.primary} /></View>
+                      <View style={{ flex: 1 }}>
+                        <Text weight="semibold" style={{ fontSize: 14 }}>{a.label} · {a.area}</Text>
+                        <Text variant="bodySm" color={colors.textTertiary}>{a.line1}</Text>
+                      </View>
+                      {me.location === a.area && <Feather name="check-circle" size={20} color={colors.primary} />}
+                    </Pressable>
+                  ))}
+                </>
+              )}
+              <Text variant="bodySm" weight="semibold" color={colors.textTertiary} style={styles.sectionLbl}>POPULAR AREAS</Text>
+              {ALL_OPTIONS.map((opt) => {
+                const selected = me.location === opt;
+                return (
+                  <Pressable key={opt} onPress={() => choose(opt)} style={[styles.row, selected && styles.rowOn]}>
+                    <View style={styles.icon}><Feather name="map-pin" size={16} color={colors.primary} /></View>
+                    <Text weight="semibold" style={{ flex: 1, fontSize: 14 }}>{opt}</Text>
+                    {selected && <Feather name="check-circle" size={20} color={colors.primary} />}
+                  </Pressable>
+                );
+              })}
+            </>
           )}
         </ScrollView>
       )}

@@ -232,7 +232,7 @@ export default function BookingDetail() {
               <Pressable style={styles.iconBtn} onPress={() => router.push(`/chat/${b.id}`)}>
                 <Feather name="message-circle" size={18} color={colors.primary} />
               </Pressable>
-              <Pressable style={[styles.iconBtn, { backgroundColor: colors.primary }]} onPress={() => Linking.openURL('tel:+923001234567')}>
+              <Pressable style={[styles.iconBtn, { backgroundColor: colors.primary }]} onPress={() => b.cleaner?.phone && Linking.openURL(`tel:${b.cleaner.phone}`)}>
                 <Feather name="phone" size={18} color={colors.white} />
               </Pressable>
             </View>

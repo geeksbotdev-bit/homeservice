@@ -84,7 +84,6 @@ export default function RootLayout() {
               <Stack.Screen name="booking/confirm" />
               <Stack.Screen name="booking/finding" options={{ gestureEnabled: false }} />
               <Stack.Screen name="booking/payment" options={{ gestureEnabled: false }} />
-              <Stack.Screen name="booking/invoice" options={{ gestureEnabled: false }} />
               <Stack.Screen name="booking/[id]" />
               <Stack.Screen name="chat/[bookingId]" />
               <Stack.Screen name="pro-job/[id]" />

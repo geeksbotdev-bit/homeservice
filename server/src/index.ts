@@ -12,6 +12,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Public base URLs. On Render these auto-resolve from RENDER_EXTERNAL_URL, so
+// the Bank Alfalah gateway always gets a public returnUrl (renders correctly).
+const SELF_URL = process.env.SELF_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:4000';
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:8081';
+
 const ok = (res: any, data: any) => res.json(data);
 function httpError(status: number, message: string) {
   return Object.assign(new Error(message), { status });
@@ -28,15 +33,39 @@ const wrap = (fn: (req: AuthedRequest, res: express.Response) => Promise<any>) =
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'homeservice-api' }));
 
 // ─── Auth ────────────────────────────────────────────────────────────
+// Real OTP verification: a code is generated per phone, expires in 5 min,
+// max 5 attempts, single-use. In dev (no SMS gateway) the code is returned as
+// `devCode` so signup is testable; wire an SMS provider to stop returning it.
+const OTP_TTL_MS = 5 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const otpStore = new Map<string, { code: string; expires: number; attempts: number }>();
+
 app.post('/auth/request-otp', wrap(async (req, res) => {
-  // Dev: no SMS sent; any 4-digit code will verify. (Wire a PK SMS gateway here.)
-  ok(res, { ok: true, ttl: 42 });
+  const { phone } = req.body as { phone?: string };
+  const normalized = (phone || '').trim();
+  if (!normalized) return res.status(400).json({ error: 'Phone number required' });
+  const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
+  otpStore.set(normalized, { code, expires: Date.now() + OTP_TTL_MS, attempts: 0 });
+  const smsConfigured = !!process.env.SMS_API_KEY;
+  // TODO: when SMS_API_KEY is set, send `code` via the PK SMS gateway here.
+  ok(res, { ok: true, ttl: OTP_TTL_MS / 1000, ...(smsConfigured ? {} : { devCode: code }) });
 }));
 
 app.post('/auth/verify-otp', wrap(async (req, res) => {
-  const { phone, role } = req.body as { phone?: string; code?: string; role?: string };
+  const { phone, code, role } = req.body as { phone?: string; code?: string; role?: string };
   const normalized = (phone || '').trim();
   if (!normalized) return res.status(400).json({ error: 'Phone number required' });
+
+  // Enforce the OTP if one was requested for this number.
+  const rec = otpStore.get(normalized);
+  if (rec) {
+    if (Date.now() > rec.expires) { otpStore.delete(normalized); return res.status(400).json({ error: 'Code expired — please resend.' }); }
+    if (rec.attempts >= OTP_MAX_ATTEMPTS) { otpStore.delete(normalized); return res.status(429).json({ error: 'Too many attempts — please resend a new code.' }); }
+    if (String(code || '').trim() !== rec.code) { rec.attempts++; return res.status(400).json({ error: 'Incorrect code. Please try again.' }); }
+    otpStore.delete(normalized); // single use
+  } else {
+    return res.status(400).json({ error: 'Please request a verification code first.' });
+  }
 
   // Existing phone → login. New phone → create a fresh, empty account.
   let user = await prisma.user.findFirst({ where: { phone: normalized } });
@@ -455,7 +484,7 @@ app.post('/cleaners/:id/preferred', requireAuth, wrap(async (req, res) => {
 }));
 
 // ─── Bookings ────────────────────────────────────────────────────────
-const bookingInclude = { addOns: true, cleaner: true, payment: true };
+const bookingInclude = { addOns: true, cleaner: { include: { user: true } }, payment: true };
 
 app.get('/bookings', requireAuth, wrap(async (req, res) => {
   const list = await prisma.booking.findMany({
@@ -606,14 +635,14 @@ app.get('/conversations', requireAuth, wrap(async (req, res) => {
 app.get('/conversations/:bookingId/meta', requireAuth, wrap(async (req, res) => {
   const viewer = await myChatRole(req.userId!);
   const b = await prisma.booking.findUnique({
-    where: { id: req.params.bookingId }, include: { cleaner: true, user: true },
+    where: { id: req.params.bookingId }, include: { cleaner: { include: { user: true } }, user: true },
   });
   if (!b) return res.status(404).json({ error: 'Conversation not found' });
   const initialsOf = (n: string) => n.split(' ').map((x) => x[0]).slice(0, 2).join('').toUpperCase() || 'HS';
   const other = viewer === 'client'
-    ? { name: b.cleaner?.name ?? 'Cleaner', initials: b.cleaner?.initials ?? 'C' }
-    : { name: b.user?.name?.trim() || 'Customer', initials: initialsOf(b.user?.name?.trim() || 'Customer') };
-  ok(res, { name: other.name, initials: other.initials, service: b.serviceName, status: b.status });
+    ? { name: b.cleaner?.name ?? 'Cleaner', initials: b.cleaner?.initials ?? 'C', phone: b.cleaner?.user?.phone ?? '' }
+    : { name: b.user?.name?.trim() || 'Customer', initials: initialsOf(b.user?.name?.trim() || 'Customer'), phone: b.user?.phone ?? '' };
+  ok(res, { name: other.name, initials: other.initials, phone: other.phone, service: b.serviceName, status: b.status });
 }));
 
 app.get('/conversations/:bookingId/messages', requireAuth, wrap(async (req, res) => {
@@ -686,7 +715,7 @@ app.post('/payments/session', requireAuth, wrap(async (req, res) => {
   if (!b) throw httpError(404, 'Booking not found');
   if (b.userId !== req.userId) throw httpError(403, 'Not your booking');
   const orderId = `HS-${bookingId.slice(-8)}-${Date.now().toString().slice(-6)}`;
-  const returnUrl = `${process.env.SELF_URL}/payments/return?order=${orderId}`;
+  const returnUrl = `${SELF_URL}/payments/return?order=${orderId}`;
   const s = await createCheckoutSession(orderId, b.total, returnUrl);
   if (s.result !== 'SUCCESS' || !s.session?.id) throw httpError(502, 'Payment gateway is unavailable. Please try again.');
   await prisma.payment.upsert({
@@ -694,7 +723,7 @@ app.post('/payments/session', requireAuth, wrap(async (req, res) => {
     create: { bookingId, method: 'card', amount: b.total, txnId: '', status: 'pending', orderId, sessionId: s.session.id, successIndicator: s.successIndicator ?? null },
     update: { method: 'card', amount: b.total, status: 'pending', txnId: '', orderId, sessionId: s.session.id, successIndicator: s.successIndicator ?? null },
   });
-  ok(res, { launchUrl: `${process.env.SELF_URL}/pay?order=${orderId}`, orderId, sessionId: s.session.id });
+  ok(res, { launchUrl: `${SELF_URL}/pay?order=${orderId}`, orderId, sessionId: s.session.id });
 }));
 
 // 2) Serve the Checkout.js launcher that redirects to the hosted payment page.
@@ -702,7 +731,7 @@ app.get('/pay', wrap(async (req, res) => {
   const orderId = String(req.query.order || '');
   const p = await prisma.payment.findFirst({ where: { orderId } });
   if (!p?.sessionId) { res.status(404).send('Invalid or expired payment session.'); return; }
-  const cancelUrl = `${process.env.SELF_URL}/payments/return?order=${orderId}&status=cancel`;
+  const cancelUrl = `${SELF_URL}/payments/return?order=${orderId}&status=cancel`;
   res.type('html').send(launcherHtml(p.sessionId, cancelUrl));
 }));
 
@@ -711,7 +740,7 @@ app.get('/payments/return', wrap(async (req, res) => {
   const orderId = String(req.query.order || '');
   const resultIndicator = String(req.query.resultIndicator || '');
   const cancelled = String(req.query.status || '') === 'cancel';
-  const CLIENT = process.env.CLIENT_URL || 'http://localhost:8081';
+  const CLIENT = CLIENT_URL;
   const p = await prisma.payment.findFirst({ where: { orderId } });
   if (!p) { res.redirect(CLIENT); return; }
 

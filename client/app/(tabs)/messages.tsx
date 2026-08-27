@@ -27,6 +27,12 @@ export default function Messages() {
 
       {list === null ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+      ) : list.length === 0 ? (
+        <View style={{ alignItems: 'center', paddingTop: 70, paddingHorizontal: 32, gap: 10 }}>
+          <Feather name="message-circle" size={32} color={colors.border} />
+          <Text weight="bold" style={{ fontSize: 16 }}>No messages yet</Text>
+          <Text color={colors.textTertiary} center>Once a cleaner is assigned to your booking, your chat will appear here.</Text>
+        </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
           {list.map((c) => (

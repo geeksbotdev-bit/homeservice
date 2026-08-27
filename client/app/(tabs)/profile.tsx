@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Linking, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Linking, Image, Alert, Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome } from '@expo/vector-icons';
 import { Text, Card } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
 import { user as userApi, cleaners as cleanersApi } from '../../src/services/api';
-import { setAuthToken, setUserRole } from '../../src/services/client';
+import { logout } from '../../src/services/session';
 import { useLang, LANGUAGES } from '../../src/store/lang';
 import { initials } from '../../src/utils';
 import type { User, Cleaner } from '../../src/data/types';
@@ -28,15 +28,14 @@ export default function Profile() {
   async function removeAddress(id: string) { setMe((m) => m ? { ...m, addresses: m.addresses.filter((a) => a.id !== id) } : m); await userApi.deleteAddress(id).catch(() => {}); load(); }
   async function removePayment(id: string) { setMe((m) => m ? { ...m, paymentMethods: m.paymentMethods.filter((p) => p.id !== id) } : m); await userApi.deletePayment(id).catch(() => {}); load(); }
 
-  const [switching, setSwitching] = useState(false);
-  async function switchToCleaner() {
-    setSwitching(true);
-    try {
-      await userApi.setRole('professional');
-      setUserRole('pro');
-      router.replace('/(pro)');
-    } catch { setSwitching(false); }
+  function confirmLogout() {
+    if (Platform.OS === 'web') { doLogout(); return; }
+    Alert.alert('Log out?', 'You will need to sign in again to book.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: doLogout },
+    ]);
   }
+  async function doLogout() { await logout(); router.replace('/(auth)/welcome'); }
 
   return (
     <View style={styles.root}>
@@ -114,7 +113,7 @@ export default function Profile() {
             { icon: 'bell', label: t('Notifications'), onPress: () => router.push('/notifications') },
             { icon: 'globe', label: `${t('Language')} · ${langNative}`, onPress: () => router.push('/language') },
             { icon: 'help-circle', label: t('Help & Support'), onPress: () => Linking.openURL('https://wa.me/923001234567') },
-            { icon: 'file-text', label: t('Terms & Privacy'), onPress: () => Linking.openURL('https://example.com/terms') },
+            { icon: 'file-text', label: t('Terms & Privacy'), onPress: () => Linking.openURL('https://withurooj.com/terms') },
           ].map((item, i, arr) => (
             <Pressable key={item.label} style={[styles.settingRow, i < arr.length - 1 && styles.divider]} onPress={item.onPress}>
               <Feather name={item.icon as any} size={18} color={colors.textSecondary} />
@@ -124,12 +123,7 @@ export default function Profile() {
           ))}
         </Card>
 
-        <Pressable style={styles.switchRole} onPress={switchToCleaner} disabled={switching}>
-          <Feather name="briefcase" size={18} color={colors.primary} />
-          <Text weight="bold" color={colors.primary}>{switching ? t('Switching…') : t('Switch to Cleaner mode')}</Text>
-        </Pressable>
-
-        <Pressable style={styles.logout} onPress={() => { setAuthToken(null); router.replace('/(auth)/welcome'); }}>
+        <Pressable style={styles.logout} onPress={confirmLogout}>
           <Feather name="log-out" size={18} color={colors.error} />
           <Text weight="bold" color={colors.error}>{t('Log Out')}</Text>
         </Pressable>

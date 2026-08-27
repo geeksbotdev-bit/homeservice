@@ -79,7 +79,7 @@ export default function Chat() {
           <Text weight="bold" style={{ fontSize: 15 }}>{otherName}</Text>
           <Text variant="bodySm" color={colors.success}>Online{meta?.service ? ` · ${meta.service}` : ''}</Text>
         </View>
-        <Pressable style={[styles.circle, { backgroundColor: colors.primary }]} onPress={() => Linking.openURL('tel:+923001234567')}>
+        <Pressable style={[styles.circle, { backgroundColor: colors.primary }]} onPress={() => meta?.phone && Linking.openURL(`tel:${meta.phone}`)}>
           <Feather name="phone" size={17} color={colors.white} />
         </Pressable>
       </View>

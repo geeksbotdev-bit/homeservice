@@ -39,6 +39,7 @@ export interface Cleaner {
   bio?: string;
   preferred?: boolean;
   available?: boolean;
+  phone?: string;
 }
 
 export interface Booking {

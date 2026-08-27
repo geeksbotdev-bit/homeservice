@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { View, StyleSheet, TextInput, ScrollView, Alert, Platform } from 'react-native';
+import { View, StyleSheet, TextInput, ScrollView, Alert, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Text, Button, NavBar } from '../../src/components';
-import { colors, radius, spacing } from '../../src/theme/theme';
+import { colors, radius } from '../../src/theme/theme';
 import { auth } from '../../src/services/api';
 import { setAuthToken, setUserRole } from '../../src/services/client';
 import { signInWithGoogle } from '../../src/services/firebaseAuth';
-import { sendOtp } from '../../src/services/phoneAuth';
 import { isFirebaseConfigured } from '../../src/services/firebase';
 
 export default function PhoneAuth() {
@@ -26,11 +25,11 @@ export default function PhoneAuth() {
     setLoading(true);
     const e164 = '+92' + phone.replace(/\s/g, '');
     try {
-      // Try Firebase real-SMS (web); fall back to backend code on native.
-      const { web } = await sendOtp(e164);
-      if (!web) await auth.requestOtp(e164);
+      // Backend OTP: real code, verified server-side (expiry + attempts + single-use).
+      // In dev (no SMS gateway) the code comes back as devCode so signup is testable.
+      const r: any = await auth.requestOtp(e164);
       setLoading(false);
-      router.push({ pathname: '/(auth)/otp', params: { phone, role, mode, fb: web ? '1' : '0' } });
+      router.push({ pathname: '/(auth)/otp', params: { phone, role, mode, fb: '0', dev: r?.devCode ?? '' } });
     } catch (e: any) {
       setLoading(false);
       Alert.alert('Could not send code', e?.message ?? 'Please try again.');
@@ -106,22 +105,25 @@ export default function PhoneAuth() {
 
         <Button label="Send Code" iconRight="send" onPress={sendCode} disabled={!valid} loading={loading} loadingLabel="Sending..." style={{ marginTop: 24 }} />
 
-        {/* Separator */}
-        <View style={styles.sep}>
-          <View style={styles.line} />
-          <Text variant="bodySm" weight="medium" color={colors.textDisabled}>or continue with</Text>
-          <View style={styles.line} />
-        </View>
-
-        <Button
-          label={isFirebaseConfigured ? 'Continue with Google' : 'Continue with Email'}
-          variant="secondary"
-          icon={isFirebaseConfigured ? 'chrome' : 'mail'}
-          onPress={isFirebaseConfigured ? continueWithGoogle : () => router.push({ pathname: '/(auth)/otp', params: { role } })}
-          loading={googleLoading}
-          loadingLabel="Opening Google…"
-          style={{ borderColor: colors.border, height: 52 }}
-        />
+        {/* Google sign-in (only when Firebase is configured) */}
+        {isFirebaseConfigured && (
+          <>
+            <View style={styles.sep}>
+              <View style={styles.line} />
+              <Text variant="bodySm" weight="medium" color={colors.textDisabled}>or continue with</Text>
+              <View style={styles.line} />
+            </View>
+            <Button
+              label="Continue with Google"
+              variant="secondary"
+              icon="chrome"
+              onPress={continueWithGoogle}
+              loading={googleLoading}
+              loadingLabel="Opening Google…"
+              style={{ borderColor: colors.border, height: 52 }}
+            />
+          </>
+        )}
 
         {/* Social proof */}
         <View style={styles.proof}>
@@ -135,8 +137,9 @@ export default function PhoneAuth() {
       </ScrollView>
 
       <Text variant="bodySm" center color={colors.textDisabled} style={styles.terms}>
-        By continuing, you agree to our <Text weight="semibold" color={colors.primary}>Terms of Service</Text> and{' '}
-        <Text weight="semibold" color={colors.primary}>Privacy Policy</Text>.
+        By continuing, you agree to our{' '}
+        <Text weight="semibold" color={colors.primary} onPress={() => Linking.openURL('https://withurooj.com/terms')}>Terms of Service</Text> and{' '}
+        <Text weight="semibold" color={colors.primary} onPress={() => Linking.openURL('https://withurooj.com/privacy')}>Privacy Policy</Text>.
       </Text>
     </SafeAreaView>
   );

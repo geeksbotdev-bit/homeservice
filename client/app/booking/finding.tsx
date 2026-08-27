@@ -49,7 +49,13 @@ export default function Finding() {
     const poll = () => {
       if (!id) return;
       bookingsApi.get(id).then((bk) => {
-        if (bk.status === 'pending') { router.replace({ pathname: '/booking/payment', params: { id } }); return; }
+        // Never search until payment is actually completed. If the booking is
+        // still pending OR has no PAID payment, bounce back to the payment screen.
+        const paid = bk.payment?.status === 'paid';
+        if (bk.status === 'pending' || !paid) {
+          router.replace({ pathname: '/booking/payment', params: { id } });
+          return;
+        }
         setBooking(bk);
       }).catch(() => {});
     };

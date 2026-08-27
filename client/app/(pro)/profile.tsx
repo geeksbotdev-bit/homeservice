@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Linking, Switch } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Linking, Switch, Alert, Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome } from '@expo/vector-icons';
 import { Text, Card } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
-import { pro, user as userApi } from '../../src/services/api';
-import { setAuthToken, setUserRole } from '../../src/services/client';
+import { pro } from '../../src/services/api';
+import { logout } from '../../src/services/session';
 import { useLang } from '../../src/store/lang';
 import type { Cleaner } from '../../src/data/types';
 
@@ -14,7 +14,6 @@ export default function ProProfile() {
   const router = useRouter();
   const { t } = useLang();
   const [me, setMe] = useState<Cleaner | null>(null);
-  const [switching, setSwitching] = useState(false);
 
   useFocusEffect(useCallback(() => { pro.profile().then(setMe); }, []));
 
@@ -23,14 +22,14 @@ export default function ProProfile() {
     await pro.updateProfile({ available: v });
   }
 
-  async function switchToCustomer() {
-    setSwitching(true);
-    try {
-      await userApi.setRole('client');
-      setUserRole('client');
-      router.replace('/(tabs)');
-    } catch { setSwitching(false); }
+  function confirmLogout() {
+    if (Platform.OS === 'web') { doLogout(); return; }
+    Alert.alert('Log out?', 'You will need to sign in again.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: doLogout },
+    ]);
   }
+  async function doLogout() { await logout(); router.replace('/(auth)/welcome'); }
 
   const online = me?.available ?? true;
 
@@ -98,12 +97,7 @@ export default function ProProfile() {
           ))}
         </Card>
 
-        <Pressable style={styles.switchRole} onPress={switchToCustomer} disabled={switching}>
-          <Feather name="home" size={18} color={colors.primary} />
-          <Text weight="bold" color={colors.primary}>{switching ? t('Switching…') : t('Switch to Customer mode')}</Text>
-        </Pressable>
-
-        <Pressable style={styles.logout} onPress={() => { setAuthToken(null); router.replace('/(auth)/welcome'); }}>
+        <Pressable style={styles.logout} onPress={confirmLogout}>
           <Feather name="log-out" size={18} color={colors.error} />
           <Text weight="bold" color={colors.error}>{t('Log Out')}</Text>
         </Pressable>
