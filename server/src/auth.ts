@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
-import { prisma } from './db';
+import { prisma } from './db.js';
 
 const SECRET = process.env.JWT_SECRET || 'dev-secret';
 

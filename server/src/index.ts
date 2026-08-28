@@ -2,11 +2,11 @@ import 'dotenv/config';
 import path from 'path';
 import express from 'express';
 import cors from 'cors';
-import { prisma } from './db';
-import { signToken, requireAuth, type AuthedRequest } from './auth';
-import { verifyIdToken, sendPush } from './firebaseAdmin';
-import { serializeService, serializeBooking, serializeCleaner, serializeMessage, serializeUser, serializeVerification } from './serialize';
-import { createCheckoutSession, retrieveOrder, launcherHtml, refundOrder } from './bafl';
+import { prisma } from './db.js';
+import { signToken, requireAuth, type AuthedRequest } from './auth.js';
+import { verifyIdToken, sendPush } from './firebaseAdmin.js';
+import { serializeService, serializeBooking, serializeCleaner, serializeMessage, serializeUser, serializeVerification } from './serialize.js';
+import { createCheckoutSession, retrieveOrder, launcherHtml, refundOrder } from './bafl.js';
 
 const app = express();
 app.use(cors());
