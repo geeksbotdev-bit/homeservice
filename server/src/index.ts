@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import path from 'path';
-import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
 import { prisma } from './db';
@@ -12,11 +11,6 @@ import { createCheckoutSession, retrieveOrder, launcherHtml, refundOrder } from 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '12mb' })); // base64 ID document images
-
-// Uploaded ID documents / selfies are served statically from /uploads.
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-app.use('/uploads', express.static(UPLOAD_DIR));
 
 // Public base URLs. On Render these auto-resolve from RENDER_EXTERNAL_URL, so
 // the Bank Alfalah gateway always gets a public returnUrl (renders correctly).
@@ -44,14 +38,19 @@ app.get('/health', (_req, res) => res.json({ ok: true, service: 'homeservice-api
 // `devCode` so signup is testable; wire an SMS provider to stop returning it.
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
-const otpStore = new Map<string, { code: string; expires: number; attempts: number }>();
 
 app.post('/auth/request-otp', wrap(async (req, res) => {
   const { phone } = req.body as { phone?: string };
   const normalized = (phone || '').trim();
   if (!normalized) return res.status(400).json({ error: 'Phone number required' });
   const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
-  otpStore.set(normalized, { code, expires: Date.now() + OTP_TTL_MS, attempts: 0 });
+  const expires = new Date(Date.now() + OTP_TTL_MS);
+  // Persisted so it survives across serverless invocations.
+  await prisma.otp.upsert({
+    where: { phone: normalized },
+    create: { phone: normalized, code, expires, attempts: 0 },
+    update: { code, expires, attempts: 0 },
+  });
   const smsConfigured = !!process.env.SMS_API_KEY;
   // TODO: when SMS_API_KEY is set, send `code` via the PK SMS gateway here.
   ok(res, { ok: true, ttl: OTP_TTL_MS / 1000, ...(smsConfigured ? {} : { devCode: code }) });
@@ -63,12 +62,12 @@ app.post('/auth/verify-otp', wrap(async (req, res) => {
   if (!normalized) return res.status(400).json({ error: 'Phone number required' });
 
   // Enforce the OTP if one was requested for this number.
-  const rec = otpStore.get(normalized);
+  const rec = await prisma.otp.findUnique({ where: { phone: normalized } });
   if (rec) {
-    if (Date.now() > rec.expires) { otpStore.delete(normalized); return res.status(400).json({ error: 'Code expired — please resend.' }); }
-    if (rec.attempts >= OTP_MAX_ATTEMPTS) { otpStore.delete(normalized); return res.status(429).json({ error: 'Too many attempts — please resend a new code.' }); }
-    if (String(code || '').trim() !== rec.code) { rec.attempts++; return res.status(400).json({ error: 'Incorrect code. Please try again.' }); }
-    otpStore.delete(normalized); // single use
+    if (Date.now() > new Date(rec.expires).getTime()) { await prisma.otp.delete({ where: { phone: normalized } }).catch(() => {}); return res.status(400).json({ error: 'Code expired — please resend.' }); }
+    if (rec.attempts >= OTP_MAX_ATTEMPTS) { await prisma.otp.delete({ where: { phone: normalized } }).catch(() => {}); return res.status(429).json({ error: 'Too many attempts — please resend a new code.' }); }
+    if (String(code || '').trim() !== rec.code) { await prisma.otp.update({ where: { phone: normalized }, data: { attempts: rec.attempts + 1 } }).catch(() => {}); return res.status(400).json({ error: 'Incorrect code. Please try again.' }); }
+    await prisma.otp.delete({ where: { phone: normalized } }).catch(() => {}); // single use
   } else {
     return res.status(400).json({ error: 'Please request a verification code first.' });
   }
@@ -295,17 +294,16 @@ app.post('/pro/location', requireAuth, wrap(async (req, res) => {
   ok(res, { ok: true });
 }));
 
-// Store a base64 image (ID document / selfie) and return its public URL.
+// Validate a base64 image (ID document / selfie). Serverless has no persistent
+// disk, so we store the image inline (data URL) in the DB rather than on disk.
 app.post('/uploads', requireAuth, wrap(async (req, res) => {
   const { dataUrl } = req.body as any;
   const m = /^data:image\/(png|jpe?g|webp);base64,(.+)$/.exec(typeof dataUrl === 'string' ? dataUrl : '');
   if (!m) throw httpError(400, 'Expected a base64 image data URL');
-  const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
   const buf = Buffer.from(m[2], 'base64');
-  if (buf.length > 8 * 1024 * 1024) throw httpError(413, 'Image too large (max 8MB)');
-  const name = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
-  ok(res, { url: `${SELF_URL}/uploads/${name}` });
+  if (buf.length > 6 * 1024 * 1024) throw httpError(413, 'Image too large (max 6MB)');
+  // The data URL itself is the stored/serveable reference.
+  ok(res, { url: dataUrl });
 }));
 
 // Cleaner submits identity documents for verification → status becomes "pending".
@@ -1169,8 +1167,14 @@ app.delete('/admin/cleaners/:id', requireAdmin, wrap(async (req, res) => {
 // Serve the admin portal (single-page dashboard). cwd = server/ under tsx (ESM).
 app.get('/admin', (_req, res) => res.sendFile(path.join(process.cwd(), 'public', 'admin.html')));
 
-const PORT = Number(process.env.PORT) || 4000;
-app.listen(PORT, () => {
-  console.log(`🚀 HomeService API running on http://localhost:${PORT}`);
-  console.log(`🛠️  Admin portal at http://localhost:${PORT}/admin`);
-});
+// On Vercel the app runs as a serverless handler (exported below) — no listen.
+// Locally / on a persistent host, start the HTTP server.
+if (!process.env.VERCEL) {
+  const PORT = Number(process.env.PORT) || 4000;
+  app.listen(PORT, () => {
+    console.log(`🚀 uroojwithus API running on http://localhost:${PORT}`);
+    console.log(`🛠️  Admin portal at http://localhost:${PORT}/admin`);
+  });
+}
+
+export default app;

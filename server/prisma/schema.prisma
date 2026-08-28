@@ -4,11 +4,13 @@
 // list data is stored as JSON strings) so the same schema works on both.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" for local; rhel-openssl-3.0.x for Vercel/AWS Lambda runtime.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -206,4 +208,13 @@ model PushToken {
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   token    String @unique
   platform String
+}
+
+// One-time passcodes — persisted (serverless has no shared memory).
+model Otp {
+  phone     String   @id
+  code      String
+  expires   DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
 }

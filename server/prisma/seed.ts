@@ -2,6 +2,14 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
+  // Idempotent: if the catalogue is already seeded, do nothing (protects real
+  // customer/booking data across redeploys).
+  const already = await prisma.service.count();
+  if (already > 0) {
+    console.log('Seed skipped — database already has data.');
+    return;
+  }
+
   // Clear (order matters for FKs)
   await prisma.message.deleteMany();
   await prisma.payment.deleteMany();
