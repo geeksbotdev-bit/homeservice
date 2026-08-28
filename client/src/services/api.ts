@@ -274,6 +274,11 @@ export const payments = {
       method: 'POST',
       body: { bookingId },
     }),
+  // GET /payments/verify -> asks the server to confirm payment directly with the
+  // gateway (retrieveOrder). Lets the app move forward without depending on the
+  // in-app checkout's own redirect.
+  verify: (bookingId: string) =>
+    USE_MOCKS ? delay({ status: 'paid' as string }) : request<{ status: string }>(`/payments/verify?bookingId=${encodeURIComponent(bookingId)}`),
 };
 
 export const FEE_PCT = HOMESERVICE_FEE_PCT;

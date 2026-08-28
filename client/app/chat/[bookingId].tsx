@@ -6,10 +6,13 @@ import { Feather } from '@expo/vector-icons';
 import { Text } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { chat, type ChatMeta } from '../../src/services/api';
+import { isPro } from '../../src/services/client';
 import { refreshUnread } from '../../src/store/unread';
 import type { ChatMessage } from '../../src/data/types';
 
-const QUICK = ['On my way!', "I've arrived", 'Running late', 'Thank you!'];
+// Role-aware quick replies — a cleaner and a customer say different things.
+const QUICK_PRO = ['On my way!', "I've arrived", 'Running late', 'Thank you!'];
+const QUICK_CUSTOMER = ['Where are you?', 'Please call me', 'How long will it take?', 'The gate is open', 'Thank you!'];
 
 export default function Chat() {
   const router = useRouter();
@@ -19,6 +22,7 @@ export default function Chat() {
   const [text, setText] = useState('');
   const scroller = useRef<ScrollView>(null);
   const lastCount = useRef(0);
+  const QUICK = isPro() ? QUICK_PRO : QUICK_CUSTOMER;
 
   // Fetch the latest thread and reconcile. Marks the other party's messages
   // read whenever something new arrives, then nudges the inbox badge.

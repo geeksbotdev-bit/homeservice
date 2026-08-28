@@ -506,12 +506,15 @@ function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number) {
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 
-// Deterministic bearing (radians) from a cleaner id — so a cleaner without a
-// live GPS fix still gets a stable spot around the customer (no jumping).
-function bearingOf(id: string) {
+// Stable hash from a cleaner id.
+function hashId(id: string) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return ((h % 360) * Math.PI) / 180;
+  return h;
+}
+// Deterministic bearing (radians) from a cleaner id — stable placement.
+function bearingOf(id: string) {
+  return ((hashId(id) % 360) * Math.PI) / 180;
 }
 function offsetFrom(lat: number, lng: number, km: number, ang: number) {
   const dLat = (km / 111) * Math.cos(ang);
@@ -531,19 +534,26 @@ app.get('/dispatch/nearby', wrap(async (req, res) => {
   const uLng = req.query.lng != null ? Number(req.query.lng) : null;
   const hasUser = uLat != null && uLng != null && !Number.isNaN(uLat) && !Number.isNaN(uLng);
 
+  // Give demo cleaners (no coordinates yet) a STABLE real location near the
+  // first customer who searches — persisted once, so distances are then computed
+  // by real geography and change as the customer moves (not fixed seed values).
+  if (hasUser) {
+    await Promise.all(cleaners.map(async (c) => {
+      if (c.lat == null || c.lng == null) {
+        const km = 0.4 + (hashId(c.id) % 45) / 10; // 0.4–4.9 km spread
+        const p = offsetFrom(uLat!, uLng!, km, bearingOf(c.id));
+        c.lat = p.lat; c.lng = p.lng;
+        await prisma.cleaner.update({ where: { id: c.id }, data: { lat: p.lat, lng: p.lng } }).catch(() => {});
+      }
+    }));
+  }
+
   const enriched = cleaners.map((c) => {
     const s: any = serializeCleaner(c);
-    const liveGps = c.lat != null && c.lng != null;
-    if (hasUser) {
-      if (liveGps) {
-        // Real reported GPS — plot exactly, real distance.
-        s.lat = c.lat; s.lng = c.lng;
-        s.distanceKm = Math.round(haversineKm(uLat!, uLng!, c.lat!, c.lng!) * 10) / 10;
-      } else {
-        // No live fix yet — sit them near the customer by their known distance.
-        const p = offsetFrom(uLat!, uLng!, c.distanceKm || 1, bearingOf(c.id));
-        s.lat = p.lat; s.lng = p.lng;
-      }
+    if (hasUser && c.lat != null && c.lng != null) {
+      // Real distance from the customer's live location to the cleaner.
+      s.lat = c.lat; s.lng = c.lng;
+      s.distanceKm = Math.round(haversineKm(uLat!, uLng!, c.lat!, c.lng!) * 10) / 10;
     }
     return s;
   });
@@ -860,7 +870,32 @@ app.get('/pay', wrap(async (req, res) => {
   const p = await prisma.payment.findFirst({ where: { orderId } });
   if (!p?.sessionId) { res.status(404).send('Invalid or expired payment session.'); return; }
   const cancelUrl = `${SELF_URL}/payments/return?order=${orderId}&status=cancel`;
-  res.type('html').send(launcherHtml(p.sessionId, cancelUrl));
+  const returnUrl = `${SELF_URL}/payments/return?order=${orderId}`;
+  res.type('html').send(launcherHtml(p.sessionId, cancelUrl, returnUrl));
+}));
+
+// 2b) The app polls this while the in-app checkout is open. It confirms the
+// payment DIRECTLY with the gateway (retrieveOrder) so the flow advances even
+// if the embedded checkout's own redirect is blocked (cross-origin iframe).
+app.get('/payments/verify', requireAuth, wrap(async (req, res) => {
+  const bookingId = String(req.query.bookingId || '');
+  const b = await prisma.booking.findUnique({ where: { id: bookingId } });
+  if (!b || b.userId !== req.userId) return ok(res, { status: 'unknown' });
+  const p = await prisma.payment.findFirst({ where: { bookingId } });
+  if (!p) return ok(res, { status: 'none' });
+  if (p.status === 'paid') return ok(res, { status: 'paid' });
+  if (p.status === 'pending' && p.orderId) {
+    const o = await retrieveOrder(p.orderId).catch(() => null);
+    const st = o?.status || o?.result;
+    const success = st === 'CAPTURED' || st === 'SUCCESS' || o?.result === 'SUCCESS';
+    if (success) {
+      const txnId = 'TXN' + Date.now().toString().slice(-8);
+      await prisma.payment.update({ where: { bookingId }, data: { status: 'paid', txnId } }).catch(() => {});
+      await activateAfterPayment(bookingId, txnId);
+      return ok(res, { status: 'paid' });
+    }
+  }
+  return ok(res, { status: p.status });
 }));
 
 // 3) Gateway returns here → verify → activate booking → bounce back to the app.

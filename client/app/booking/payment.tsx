@@ -1,58 +1,43 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Modal, ActivityIndicator, Platform } from 'react-native';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Text, Button, NavBar, Card } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
 import { useBooking } from '../../src/store/booking';
-import { payments, user as userApi, bookings } from '../../src/services/api';
+import { payments } from '../../src/services/api';
 import { formatPKR } from '../../src/utils';
-import type { PaymentMethod } from '../../src/data/types';
-
-const ICONS: Record<string, any> = { bank: 'home', easypaisa: 'smartphone', jazzcash: 'smartphone', card: 'credit-card' };
 
 export default function Payment() {
   const router = useRouter();
   const { id, failed } = useLocalSearchParams<{ id: string; failed?: string }>();
   const { total, subtotal, fee, draft, selectedAddOns } = useBooking();
   const service = draft.service;
-  const [methods, setMethods] = useState<PaymentMethod[] | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [waiting, setWaiting] = useState(false);
+  const [payUrl, setPayUrl] = useState<string | null>(null); // in-app gateway (web)
   const [err, setErr] = useState<string | null>(failed ? 'Payment was cancelled or failed. Please try again.' : null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
-  // Load the user's OWN saved payment methods (money is charged from these).
-  useFocusEffect(useCallback(() => {
-    userApi.me().then((me) => {
-      setMethods(me.paymentMethods);
-      setSelectedId((cur) => cur ?? (me.paymentMethods.find((p) => p.isDefault) ?? me.paymentMethods[0])?.id ?? null);
-    }).catch(() => setMethods([]));
-  }, []));
-
-  const selected = methods?.find((m) => m.id === selectedId) ?? null;
-
   const bookingId = id ?? 'HS-2025-00125';
 
-  // Real card payment via Bank Alfalah (MPGS) Hosted Checkout.
+  // Real card payment via Bank Alfalah (MPGS) — embedded IN-APP (no new tab).
   async function payWithCard() {
     setErr(null);
     setProcessing(true);
     try {
       const { launchUrl } = await payments.createSession(bookingId);
       if (Platform.OS === 'web') {
-        // Open the secure gateway in a NEW TAB so the app stays put, then poll
+        // Show the secure card form inside the app (embedded iframe), then poll
         // the booking — the moment the gateway confirms payment, we continue.
-        window.open(launchUrl, '_blank');
         setProcessing(false);
-        setWaiting(true);
+        setPayUrl(launchUrl);
         const t = setInterval(async () => {
-          const b = await bookings.get(bookingId).catch(() => null);
-          if (b && (b as any).payment?.status === 'paid') {
+          const r = await payments.verify(bookingId).catch(() => null);
+          if (r?.status === 'paid') {
             clearInterval(t);
+            setPayUrl(null);
             router.replace({ pathname: '/booking/finding', params: { id: bookingId } });
           }
         }, 2500);
@@ -65,26 +50,6 @@ export default function Payment() {
       setProcessing(false);
       setErr(String(e?.message ?? '').includes('401') ? 'Session expired — please sign in again.' : 'Could not start payment. Please try again.');
     }
-  }
-
-  // Pay from a saved wallet / bank (marks paid directly, then starts the search).
-  async function payFromSaved() {
-    if (!selected) return;
-    setProcessing(true);
-    try {
-      await payments.pay(bookingId, selected.type, total);
-      router.replace({ pathname: '/booking/finding', params: { id: bookingId } });
-    } catch {
-      setProcessing(false);
-      setErr('Payment failed. Please try again.');
-    }
-  }
-
-  // Any SAVED method (JazzCash / Easypaisa / bank / saved card) → pay directly
-  // from that account, no card popup. Only a brand-new card uses the gateway.
-  function payWithSelected() {
-    if (!selected) return payWithCard();
-    return payFromSaved();
   }
 
   return (
@@ -109,58 +74,20 @@ export default function Payment() {
           {service && <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 4 }}>{service.name}{selectedAddOns.length ? ` + ${selectedAddOns.length} add-on` : ''} · {draft.quantity} {service.unitNoun}{draft.quantity > 1 ? 's' : ''}</Text>}
         </Card>
 
-        {/* Saved payment methods */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, marginHorizontal: 4 }}>
-          <Text variant="caption" color={colors.textDisabled} style={{ letterSpacing: 1 }}>PAY FROM YOUR ACCOUNT</Text>
-          <Pressable onPress={() => router.push('/payment/new')} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Feather name="plus" size={13} color={colors.primary} />
-            <Text weight="semibold" color={colors.primary} style={{ fontSize: 12 }}>Add</Text>
-          </Pressable>
-        </View>
-
-        {methods === null ? (
-          <ActivityIndicator color={colors.primary} style={{ paddingVertical: 20 }} />
-        ) : methods.length === 0 ? (
-          <Card style={{ padding: 20, alignItems: 'center', gap: 10 }}>
-            <Feather name="credit-card" size={28} color={colors.border} />
-            <Text color={colors.textTertiary} center>No payment method saved. Add the account you'll pay from.</Text>
-            <Button label="Add Payment Method" icon="plus" fullWidth={false} onPress={() => router.push('/payment/new')} style={{ paddingHorizontal: 24 }} />
-          </Card>
-        ) : (
-          <View style={{ gap: 10 }}>
-            {methods.map((m) => {
-              const active = selectedId === m.id;
-              return (
-                <Pressable key={m.id} onPress={() => setSelectedId(m.id)} style={[styles.method, active && styles.methodActive]}>
-                  <View style={[styles.methodIcon, active && { backgroundColor: colors.primary }]}>
-                    <Feather name={ICONS[m.type] ?? 'credit-card'} size={18} color={active ? colors.white : colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text weight="bold" style={{ fontSize: 14 }}>{m.name}</Text>
-                      {m.isDefault && <View style={styles.defBadge}><Text style={{ fontSize: 9 }} weight="bold" color={colors.primary700}>DEFAULT</Text></View>}
-                    </View>
-                    <Text variant="bodySm" color={colors.textTertiary}>{m.detail}</Text>
-                  </View>
-                  <View style={[styles.radio, active && styles.radioActive]}>{active && <View style={styles.radioDot} />}</View>
-                </Pressable>
-              );
-            })}
+        {/* Card-only payment via the secure gateway */}
+        <View style={styles.cardInfo}>
+          <View style={styles.methodIcon}><Feather name="credit-card" size={18} color={colors.primary} /></View>
+          <View style={{ flex: 1 }}>
+            <Text weight="bold" style={{ fontSize: 14 }}>Debit / Credit Card</Text>
+            <Text variant="bodySm" color={colors.textTertiary}>Visa / Mastercard · via Bank Alfalah</Text>
           </View>
-        )}
+          <Feather name="shield" size={18} color={colors.success} />
+        </View>
 
         {err && (
           <View style={[styles.chargeNote, { backgroundColor: colors.errorBg }]}>
             <Feather name="alert-circle" size={14} color={colors.error} />
             <Text variant="bodySm" color={colors.error} style={{ flex: 1, fontSize: 12 }}>{err}</Text>
-          </View>
-        )}
-        {selected && (
-          <View style={styles.chargeNote}>
-            <Feather name="alert-circle" size={14} color={colors.warning} />
-            <Text variant="bodySm" color={colors.warningText} style={{ flex: 1, fontSize: 12 }}>
-              {formatPKR(total)} will be paid from <Text weight="bold">{selected.name} · {selected.detail}</Text>.
-            </Text>
           </View>
         )}
 
@@ -180,18 +107,10 @@ export default function Payment() {
         </View>
       </ScrollView>
 
-      {/* Sticky pay button — saved method pays directly; new card uses gateway */}
+      {/* Sticky pay button — always through the Bank Alfalah card gateway.
+          The cleaner search only begins after the gateway confirms payment. */}
       <View style={styles.footer}>
-        <Button
-          label={selected ? `Pay ${formatPKR(total)} · ${selected.name}` : `Pay ${formatPKR(total)} with Card`}
-          icon="lock"
-          onPress={payWithSelected}
-        />
-        {selected && (
-          <Pressable onPress={payWithCard} style={{ alignSelf: 'center', paddingVertical: 10 }}>
-            <Text weight="semibold" color={colors.primary}>Pay with a new card instead</Text>
-          </Pressable>
-        )}
+        <Button label={`Pay ${formatPKR(total)} with Card`} icon="lock" onPress={payWithCard} loading={processing} />
       </View>
 
       {/* Processing overlay */}
@@ -199,26 +118,30 @@ export default function Payment() {
         <View style={styles.overlay}>
           <View style={styles.processingCard}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text weight="bold" style={{ marginTop: 16, fontSize: 16 }}>{selected ? 'Processing payment…' : 'Opening secure checkout…'}</Text>
-            <Text variant="bodySm" color={colors.textTertiary} center style={{ marginTop: 4 }}>{selected ? selected.name : 'Bank Alfalah'}</Text>
+            <Text weight="bold" style={{ marginTop: 16, fontSize: 16 }}>Opening secure checkout…</Text>
+            <Text variant="bodySm" color={colors.textTertiary} center style={{ marginTop: 4 }}>Bank Alfalah</Text>
           </View>
         </View>
       </Modal>
 
-      {/* Waiting-for-gateway overlay (web: gateway opened in a new tab) */}
-      <Modal visible={waiting} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.processingCard}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text weight="bold" style={{ marginTop: 16, fontSize: 16 }} center>Complete payment in the new tab</Text>
-            <Text variant="bodySm" color={colors.textTertiary} center style={{ marginTop: 6 }}>
-              Finish paying on the Bank Alfalah page. This will continue automatically once payment is confirmed.
-            </Text>
-            <Pressable onPress={() => { if (pollRef.current) clearInterval(pollRef.current); setWaiting(false); }} style={{ marginTop: 18 }}>
-              <Text weight="semibold" color={colors.error}>Cancel</Text>
+      {/* In-app secure card gateway (web) — embedded, no new tab */}
+      <Modal visible={!!payUrl} animationType="slide" onRequestClose={() => { if (pollRef.current) clearInterval(pollRef.current); setPayUrl(null); }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
+          <View style={styles.payHead}>
+            <Pressable onPress={() => { if (pollRef.current) clearInterval(pollRef.current); setPayUrl(null); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Feather name="chevron-left" size={20} color={colors.textSecondary} />
+              <Text weight="semibold" color={colors.textSecondary}>Cancel</Text>
             </Pressable>
+            <Text weight="bold" style={{ fontSize: 15 }}>Secure Payment</Text>
+            <View style={{ width: 60 }} />
           </View>
-        </View>
+          {Platform.OS === 'web' && payUrl ? (
+            // @ts-ignore — DOM iframe on web
+            <iframe src={payUrl} style={{ border: 0, width: '100%', flex: 1 }} title="secure-payment" />
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.primary} /></View>
+          )}
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -240,6 +163,8 @@ const styles = StyleSheet.create({
   method: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.white, borderRadius: radius.lg, padding: 14, borderWidth: 1.5, borderColor: colors.border },
   methodActive: { borderColor: colors.primary, backgroundColor: '#F0FAFA' },
   methodIcon: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.primary50, alignItems: 'center', justifyContent: 'center' },
+  cardInfo: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.white, borderRadius: radius.lg, padding: 14, borderWidth: 1.5, borderColor: colors.border },
+  payHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.surface },
   defBadge: { backgroundColor: colors.primary50, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   radioActive: { borderColor: colors.primary },

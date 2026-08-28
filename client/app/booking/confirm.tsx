@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Modal, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,7 +7,7 @@ import { Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons
 import Svg, { Rect, Line, Path, Circle, Ellipse } from 'react-native-svg';
 import { Text, Button, NavBar } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
-import { bookings as bookingsApi, user as userApi } from '../../src/services/api';
+import { bookings as bookingsApi, user as userApi, payments } from '../../src/services/api';
 import { formatPKR } from '../../src/utils';
 import { useBooking } from '../../src/store/booking';
 import type { User } from '../../src/data/types';
@@ -21,8 +21,12 @@ export default function Confirm() {
   const [me, setMe] = useState<User | null>(null);
   const [payIdx, setPayIdx] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [payUrl, setPayUrl] = useState<string | null>(null); // in-app gateway (web)
+  const [err, setErr] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => { userApi.me().then(setMe); }, []);
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   const service = draft.service;
   if (!service) {
@@ -40,7 +44,9 @@ export default function Confirm() {
 
   const today = new Date();
   const todayLabel = `${DAYS[today.getDay()]}, ${today.getDate()} ${MONTHS[today.getMonth()]} ${today.getFullYear()}`;
-  const pay = me?.paymentMethods?.[payIdx];
+  // Card only for now (wallets disabled until their APIs are wired).
+  const cards = me?.paymentMethods?.filter((p) => p.type === 'card') ?? [];
+  const pay = cards[payIdx];
 
   async function confirm() {
     setLoading(true);
@@ -58,13 +64,39 @@ export default function Confirm() {
       total,
       serviceId: service!.id, quantity: draft.quantity, addOnIds: draft.addOnIds, mode: draft.mode,
     });
-    setLoading(false);
-    if (draft.mode === 'now') {
-      // Instant → PAY FIRST, then the cleaner search begins.
-      router.replace({ pathname: '/booking/payment', params: { id: res.id } });
-    } else {
+    if (draft.mode !== 'now') {
       // Scheduled → posted to the open pool; a cleaner picks it up.
+      setLoading(false);
       router.replace('/(tabs)/bookings');
+      return;
+    }
+
+    // Instant → PAY FIRST, right here. Launch the Bank Alfalah card gateway
+    // directly (no separate payment screen). The cleaner search begins only
+    // after the gateway confirms the payment.
+    setErr(null);
+    try {
+      const { launchUrl } = await payments.createSession(res.id);
+      if (Platform.OS === 'web') {
+        // Open the secure card form INSIDE the app (embedded iframe), not a new tab.
+        setLoading(false);
+        setPayUrl(launchUrl);
+        const t = setInterval(async () => {
+          const r = await payments.verify(res.id).catch(() => null);
+          if (r?.status === 'paid') {
+            clearInterval(t);
+            setPayUrl(null);
+            router.replace({ pathname: '/booking/finding', params: { id: res.id } });
+          }
+        }, 2500);
+        pollRef.current = t;
+      } else {
+        // Native: the gateway opens in an in-app browser screen (still in-app).
+        router.replace({ pathname: '/pay-webview', params: { url: launchUrl, id: res.id } });
+      }
+    } catch (e: any) {
+      setLoading(false);
+      setErr(String(e?.message ?? '').includes('401') ? 'Session expired — please sign in again.' : 'Could not start payment. Please try again.');
     }
   }
 
@@ -148,7 +180,7 @@ export default function Confirm() {
             <View style={styles.lineRow}><Text variant="bodySm" color={colors.textTertiary}>Subtotal</Text><Text weight="semibold" style={{ fontSize: 13 }}>{formatPKR(subtotal)}</Text></View>
             <View style={styles.lineRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text variant="bodySm" color={colors.textTertiary}>HomeService fee</Text>
+                <Text variant="bodySm" color={colors.textTertiary}>Service fee</Text>
                 <View style={styles.pct}><Text style={{ fontSize: 10 }} weight="semibold" color={colors.textTertiary}>5%</Text></View>
               </View>
               <Text weight="semibold" style={{ fontSize: 13 }}>+{formatPKR(fee)}</Text>
@@ -158,8 +190,8 @@ export default function Confirm() {
               <Text weight="extrabold" color={colors.primary} style={{ fontSize: 22, letterSpacing: -0.5 }}>{formatPKR(total)}</Text>
             </View>
             <View style={styles.payNote}>
-              <Feather name="info" size={13} color={colors.textDisabled} style={{ marginTop: 1 }} />
-              <Text variant="bodySm" color={colors.textTertiary} style={{ flex: 1, fontSize: 11, lineHeight: 16 }}>Payment collected after service completion. No charges until your home is cleaned.</Text>
+              <Feather name="shield" size={13} color={colors.success} style={{ marginTop: 1 }} />
+              <Text variant="bodySm" color={colors.textTertiary} style={{ flex: 1, fontSize: 11, lineHeight: 16 }}>Pay now to confirm — your cleaner is found right after payment. Cancel within 30 days for a refund (30% fee), credited within 1 week.</Text>
             </View>
           </View>
         </Card>
@@ -169,24 +201,29 @@ export default function Confirm() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}>
             <View style={styles.payIcon}><Feather name="credit-card" size={18} color={colors.primary} /></View>
             <View style={{ flex: 1 }}>
-              <Text weight="bold" style={{ fontSize: 15 }}>{pay?.name ?? 'Bank Transfer'}</Text>
-              <Text variant="bodySm" color={colors.textTertiary}>{pay?.detail ?? '—'}</Text>
+              <Text weight="bold" style={{ fontSize: 15 }}>{pay?.name ?? 'Debit / Credit Card'}</Text>
+              <Text variant="bodySm" color={colors.textTertiary}>{pay?.detail ?? 'Visa / Mastercard · via Bank Alfalah'}</Text>
             </View>
-            {(me?.paymentMethods.length ?? 0) > 1 && (
-              <Pressable onPress={() => setPayIdx((i) => (i + 1) % me!.paymentMethods.length)} style={styles.changeBtn}>
+            {cards.length > 1 && (
+              <Pressable onPress={() => setPayIdx((i) => (i + 1) % cards.length)} style={styles.changeBtn}>
                 <Text weight="bold" color={colors.primary} style={{ fontSize: 13 }}>Change</Text>
               </Pressable>
             )}
           </View>
           <View style={styles.accepted}>
-            {['Easypaisa', 'JazzCash', 'HBL'].map((m) => <View key={m} style={styles.acceptChip}><Text weight="bold" color={colors.textSecondary} style={{ fontSize: 10 }}>{m}</Text></View>)}
-            <View style={styles.acceptChip}><Text weight="semibold" color={colors.textDisabled} style={{ fontSize: 10 }}>+3 more</Text></View>
+            {['Visa', 'Mastercard', 'Debit Card'].map((m) => <View key={m} style={styles.acceptChip}><Text weight="bold" color={colors.textSecondary} style={{ fontSize: 10 }}>{m}</Text></View>)}
           </View>
         </Card>
       </ScrollView>
 
       {/* Bottom */}
       <View style={styles.bottom}>
+        {err && (
+          <View style={styles.errNote}>
+            <Feather name="alert-circle" size={14} color={colors.error} />
+            <Text variant="bodySm" color={colors.error} style={{ flex: 1, fontSize: 12 }}>{err}</Text>
+          </View>
+        )}
         <View style={styles.trust}>
           <Trust icon="award" label="Verified cleaner" />
           <View style={styles.miniDot} />
@@ -195,11 +232,31 @@ export default function Confirm() {
           <Trust icon="lock" label="Secure payment" />
         </View>
         <Button
-          label={draft.mode === 'now' ? 'Confirm & Find Cleaner' : 'Confirm & Post Booking'}
-          icon={draft.mode === 'now' ? 'search' : 'check-circle'}
-          onPress={confirm} loading={loading} loadingLabel={draft.mode === 'now' ? 'Finding your cleaner...' : 'Posting your booking...'}
+          label="Confirm & Pay"
+          icon="lock"
+          onPress={confirm} loading={loading} loadingLabel="Opening secure checkout..."
         />
       </View>
+
+      {/* In-app secure card gateway (web) — embedded, no new tab */}
+      <Modal visible={!!payUrl} animationType="slide" onRequestClose={() => { if (pollRef.current) clearInterval(pollRef.current); setPayUrl(null); }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
+          <View style={styles.payHead}>
+            <Pressable onPress={() => { if (pollRef.current) clearInterval(pollRef.current); setPayUrl(null); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Feather name="chevron-left" size={20} color={colors.textSecondary} />
+              <Text weight="semibold" color={colors.textSecondary}>Cancel</Text>
+            </Pressable>
+            <Text weight="bold" style={{ fontSize: 15 }}>Secure Payment</Text>
+            <View style={{ width: 60 }} />
+          </View>
+          {Platform.OS === 'web' && payUrl ? (
+            // @ts-ignore — DOM iframe on web
+            <iframe src={payUrl} style={{ border: 0, width: '100%', flex: 1 }} title="secure-payment" />
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.primary} /></View>
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -260,5 +317,9 @@ const styles = StyleSheet.create({
   accepted: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingBottom: 14 },
   acceptChip: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingVertical: 4, paddingHorizontal: 10 },
   bottom: { backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.surface, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28 },
+  errNote: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.errorBg, borderRadius: radius.md, padding: 10, marginBottom: 10 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 40 },
+  overlayCard: { backgroundColor: colors.white, borderRadius: radius.xl, padding: 30, alignItems: 'center', width: '100%' },
+  payHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.surface },
   trust: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 12 },
 });

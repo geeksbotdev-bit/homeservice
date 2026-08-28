@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "HomeService",
+    "name": "uroojwithus",
     "slug": "homeservice-client",
     "scheme": "homeservice",
     "version": "1.0.0",
@@ -24,7 +24,8 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "uroojwithus"
     },
     "plugins": [
       "expo-router",
@@ -35,7 +36,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "HomeService uses your location to detect your address and match you with nearby cleaners."
+          "locationAlwaysAndWhenInUsePermission": "uroojwithus uses your location to detect your address and match you with nearby cleaners."
         }
       ]
     ],

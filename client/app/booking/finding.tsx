@@ -140,12 +140,13 @@ export default function Finding() {
   // (nudged each tick so they feel alive, like idling drivers).
   const pins: NearbyPin[] = candidates.map((c) => {
     const isMatched = matched && assigned?.id === c.id;
-    if (c.live && c.lat != null && c.lng != null) {
+    // Real position from the API (live GPS or the cleaner's stored location).
+    if (c.lat != null && c.lng != null) {
       return { id: c.id, lat: c.lat, lng: c.lng, initials: c.initials, matched: isMatched };
     }
-    const ang = bearing(c.id) + tick * (0.06 + (bearing(c.id) % 0.4)) * 0.5;
-    const km = Math.max(0.4, (c.distanceKm ?? 1) + Math.sin(tick + bearing(c.id)) * 0.15);
-    const { lat, lng } = offset(userLoc.lat, userLoc.lng, km, ang);
+    // Fallback only if the server had no coordinates.
+    const ang = bearing(c.id) + tick * 0.05;
+    const { lat, lng } = offset(userLoc.lat, userLoc.lng, Math.max(0.4, c.distanceKm ?? 1), ang);
     return { id: c.id, lat, lng, initials: c.initials, matched: isMatched };
   });
 

@@ -7,10 +7,9 @@ import { Text, Button, NavBar, PhoneField } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { user as userApi } from '../../src/services/api';
 
+// Card only for now — mobile wallets (Easypaisa / JazzCash) are temporarily
+// disabled; all customer payments go through the secure card gateway.
 const TYPES = [
-  { id: 'bank', label: 'Bank', name: 'Bank Transfer', icon: 'home', desc: 'Transfer from your bank account' },
-  { id: 'easypaisa', label: 'Easypaisa', name: 'Easypaisa', icon: 'smartphone', desc: 'Mobile wallet' },
-  { id: 'jazzcash', label: 'JazzCash', name: 'JazzCash', icon: 'smartphone', desc: 'Mobile wallet' },
   { id: 'card', label: 'Card', name: 'Debit / Credit Card', icon: 'credit-card', desc: 'Visa / Mastercard' },
 ];
 
@@ -18,7 +17,7 @@ const last4 = (s: string) => s.replace(/\s+/g, '').slice(-4);
 
 export default function NewPayment() {
   const router = useRouter();
-  const [type, setType] = useState('bank');
+  const [type, setType] = useState('card');
   const [bankName, setBankName] = useState('');
   const [title, setTitle] = useState('');
   const [number, setNumber] = useState('');
@@ -53,24 +52,26 @@ export default function NewPayment() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <NavBar title="Add Payment Method" />
       <ScrollView contentContainerStyle={{ padding: 20, gap: 18 }} keyboardShouldPersistTaps="handled">
-        <View>
-          <Text variant="bodySm" weight="semibold" color={colors.textSecondary} style={{ marginBottom: 8 }}>Method</Text>
-          <View style={{ gap: 10 }}>
-            {TYPES.map((t) => {
-              const on = type === t.id;
-              return (
-                <Pressable key={t.id} onPress={() => setType(t.id)} style={[styles.option, on && styles.optionOn]}>
-                  <View style={[styles.icon, on && { backgroundColor: colors.primary }]}><Feather name={t.icon as any} size={16} color={on ? colors.white : colors.primary} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text weight="semibold" style={{ fontSize: 14 }}>{t.name}</Text>
-                    <Text variant="bodySm" color={colors.textTertiary}>{t.desc}</Text>
-                  </View>
-                  <View style={[styles.radio, on && styles.radioOn]}>{on && <View style={styles.radioDot} />}</View>
-                </Pressable>
-              );
-            })}
+        {TYPES.length > 1 && (
+          <View>
+            <Text variant="bodySm" weight="semibold" color={colors.textSecondary} style={{ marginBottom: 8 }}>Method</Text>
+            <View style={{ gap: 10 }}>
+              {TYPES.map((t) => {
+                const on = type === t.id;
+                return (
+                  <Pressable key={t.id} onPress={() => setType(t.id)} style={[styles.option, on && styles.optionOn]}>
+                    <View style={[styles.icon, on && { backgroundColor: colors.primary }]}><Feather name={t.icon as any} size={16} color={on ? colors.white : colors.primary} /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text weight="semibold" style={{ fontSize: 14 }}>{t.name}</Text>
+                      <Text variant="bodySm" color={colors.textTertiary}>{t.desc}</Text>
+                    </View>
+                    <View style={[styles.radio, on && styles.radioOn]}>{on && <View style={styles.radioDot} />}</View>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Bank needs holder + bank name */}
         {isBank && (
