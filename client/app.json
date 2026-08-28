@@ -34,7 +34,13 @@
       "expo-router",
       "expo-status-bar",
       "expo-font",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B7C82",
+          "resizeMode": "contain"
+        }
+      ],
       "expo-sharing",
       [
         "expo-location",
