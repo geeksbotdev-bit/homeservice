@@ -93,6 +93,10 @@ export async function request<T>(
   path: string,
   options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
+  // Abort a request that hangs (slow network / cold start) so the UI shows a
+  // clear error instead of spinning forever.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -102,10 +106,13 @@ export async function request<T>(
         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
     });
   } catch {
-    // fetch throws (TypeError) when the device is offline / can't reach the server.
+    // fetch throws (offline / can't reach the server / aborted timeout).
     throw new NetworkError();
+  } finally {
+    clearTimeout(timer);
   }
   if (!res.ok) {
     // Only a REAL session-expiry (we had a token) bounces to login. A 401 on a
@@ -116,8 +123,11 @@ export async function request<T>(
       setAuthToken(null);
       if (hadToken) onUnauthorized?.();
     }
-    const msg = await res.text().catch(() => res.statusText);
-    throw new Error(`API ${res.status}: ${msg}`);
+    // Surface a CLEAN message (the server's { error } field), never raw JSON.
+    const raw = await res.text().catch(() => '');
+    let message = raw || res.statusText || 'Something went wrong';
+    try { const j = JSON.parse(raw); if (j?.error) message = j.error; } catch { /* not json */ }
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }
