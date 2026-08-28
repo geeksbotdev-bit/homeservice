@@ -14,7 +14,11 @@ app.use(express.json({ limit: '12mb' })); // base64 ID document images
 
 // Public base URLs. On Render these auto-resolve from RENDER_EXTERNAL_URL, so
 // the Bank Alfalah gateway always gets a public returnUrl (renders correctly).
-const SELF_URL = process.env.SELF_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:4000';
+const SELF_URL =
+  process.env.SELF_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
+  process.env.RENDER_EXTERNAL_URL ||
+  'http://localhost:4000';
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:8081';
 
 const ok = (res: any, data: any) => res.json(data);
