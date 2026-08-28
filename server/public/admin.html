@@ -101,6 +101,7 @@
     <div class="nav-item active" data-tab="overview" onclick="go('overview')"><span class="ic">▦</span> Overview</div>
     <div class="nav-item" data-tab="bookings" onclick="go('bookings')"><span class="ic">▤</span> Bookings</div>
     <div class="nav-item" data-tab="cleaners" onclick="go('cleaners')"><span class="ic">◍</span> Cleaners</div>
+    <div class="nav-item" data-tab="verifications" onclick="go('verifications')"><span class="ic">☑</span> Verifications <span id="verifBadge" class="tag t-orange" style="display:none;margin-left:auto"></span></div>
     <div class="nav-item" data-tab="customers" onclick="go('customers')"><span class="ic">◎</span> Customers</div>
     <div class="nav-item" data-tab="services" onclick="go('services')"><span class="ic">▣</span> Services</div>
     <div class="nav-item" data-tab="payments" onclick="go('payments')"><span class="ic">₨</span> Payments</div>
@@ -197,12 +198,12 @@
     } catch { err.textContent = 'Could not reach the server.'; }
   }
   function logout() { KEY=''; localStorage.removeItem('hs_admin_key'); document.getElementById('app').style.display='none'; document.getElementById('login').style.display='flex'; }
-  function showApp() { document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; load(); }
+  function showApp() { document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; load(); refreshVerifBadge(); }
 
   function go(tab) {
     TAB = tab;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab===tab));
-    const titles = { overview:['Overview','All platform data, live'], bookings:['Bookings','Every booking across the platform'], cleaners:['Cleaners','Registered professionals'], customers:['Customers','Registered customers'], services:['Services','Service catalogue & pricing'], payments:['Payments','Transactions & revenue'] };
+    const titles = { overview:['Overview','All platform data, live'], bookings:['Bookings','Every booking across the platform'], cleaners:['Cleaners','Registered professionals'], verifications:['Verifications','Identity documents & approvals'], customers:['Customers','Registered customers'], services:['Services','Service catalogue & pricing'], payments:['Payments','Transactions & revenue'] };
     document.getElementById('title').textContent = titles[tab][0];
     document.getElementById('subtitle').textContent = titles[tab][1];
     load();
@@ -218,6 +219,7 @@
       if (TAB==='overview') return renderOverview(await api('/admin/overview'));
       if (TAB==='bookings') return renderBookings(await api('/admin/bookings'));
       if (TAB==='cleaners') return renderCleaners(await api('/admin/cleaners'));
+      if (TAB==='verifications') return renderVerifications(await api('/admin/verifications?status=all'));
       if (TAB==='customers') return renderCustomers(await api('/admin/customers'));
       if (TAB==='services') return renderServices(await api('/admin/services'));
       if (TAB==='payments') return renderPayments(await api('/admin/payments'));
@@ -274,10 +276,47 @@
       <td class="mono">${c.completed}</td>
       <td class="mono">${c.distanceKm} km</td>
       <td><span class="tag ${c.available?'t-green':'t-gray'}">${c.available?'Online':'Offline'}</span></td>
+      <td>${verifTag(c.verifStatus)}</td>
       <td><span class="tag ${c.userLinked?'t-teal':'t-gray'}">${c.userLinked?'Real pro':'Demo'}</span></td>
       <td style="white-space:nowrap"><button class="ghost" style="padding:5px 10px;font-size:12px" onclick="toggleCleaner('${esc(c.id)}')">${c.available?'Set offline':'Set online'}</button> <button class="del" onclick="delCleaner('${esc(c.id)}','${esc(c.name)}')">Remove</button></td></tr>`);
-    C().innerHTML = `<div class="rowline"><span class="muted">${list.length} cleaners</span><button class="add" onclick="openCleanerModal()">+ New cleaner</button></div>` + table(['Cleaner','Rating','Jobs done','Distance','Status','Type',''], rows);
+    C().innerHTML = `<div class="rowline"><span class="muted">${list.length} cleaners</span><button class="add" onclick="openCleanerModal()">+ New cleaner</button></div>` + table(['Cleaner','Rating','Jobs done','Distance','Status','Verified','Type',''], rows);
   }
+  const VERIF_TAG = { verified:'t-green', pending:'t-orange', rejected:'t-red', unverified:'t-gray' };
+  function verifTag(s){ return `<span class="tag ${VERIF_TAG[s]||'t-gray'}">${esc(s||'unverified')}</span>`; }
+
+  function renderVerifications(list) {
+    const thumb = (url, label) => url
+      ? `<a href="${esc(url)}" target="_blank" style="display:block"><div style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:5px">${label}</div><img src="${esc(url)}" style="width:130px;height:88px;object-fit:cover;border-radius:9px;border:1px solid var(--line)" /></a>`
+      : `<div><div style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:5px">${label}</div><div style="width:130px;height:88px;border-radius:9px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:12px">None</div></div>`;
+    const cards = list.map(c => `<div class="panel" style="padding:16px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span class="avatar">${esc(c.initials)}</span>
+        <div style="flex:1"><b>${esc(c.name)}</b> ${verifTag(c.verifStatus)}<br>
+          <span class="muted" style="font-size:12px">${esc(c.phone||'—')} · CNIC ${esc(c.cnic||'—')}${c.verifAt?(' · '+fmtDate(c.verifAt)):''}</span>
+          ${c.verifNote?`<br><span style="color:var(--red);font-size:12px">Note: ${esc(c.verifNote)}</span>`:''}
+        </div>
+        <div style="white-space:nowrap">
+          ${c.verifStatus==='verified'?'':`<button class="add" style="background:var(--ok)" onclick="verifyCleaner('${esc(c.id)}','verified')">Approve</button>`}
+          ${c.verifStatus==='rejected'?'':`<button class="del" style="padding:9px 14px" onclick="verifyCleaner('${esc(c.id)}','rejected')">Reject</button>`}
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">${thumb(c.idFront,'CNIC Front')}${thumb(c.idBack,'CNIC Back')}${thumb(c.selfie,'Selfie')}</div>
+    </div>`);
+    const pending = list.filter(c=>c.verifStatus==='pending').length;
+    C().innerHTML = `<div class="rowline"><span class="muted">${list.length} cleaners · ${pending} pending review</span></div>` + (cards.length?cards.join(''):'<div class="panel"><div class="empty">No cleaner accounts yet.</div></div>');
+    setVerifBadge(pending);
+  }
+  async function verifyCleaner(id, status){
+    let note = null;
+    if (status==='rejected'){ note = prompt('Reason for rejection (shown to the cleaner):','Documents are unclear. Please re-upload.'); if(note===null) return; }
+    else if (!confirm('Approve this cleaner? They will be able to accept jobs.')) return;
+    const r = await fetch(API+'/admin/cleaners/'+id+'/verify',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':KEY},body:JSON.stringify({status,note})});
+    if(!r.ok){ alert('Could not update verification.'); return; }
+    load(); refreshVerifBadge();
+  }
+  function setVerifBadge(n){ const b=document.getElementById('verifBadge'); if(!b)return; if(n>0){ b.style.display='inline-block'; b.textContent=n; } else b.style.display='none'; }
+  async function refreshVerifBadge(){ try{ const l=await api('/admin/verifications?status=pending'); setVerifBadge(l.length); }catch{} }
+
   async function cancelBooking(id){ if(!confirm('Cancel this booking? The customer will be notified.'))return; const r=await fetch(API+'/admin/bookings/'+id+'/cancel',{method:'POST',headers:{'x-admin-key':KEY}}); if(!r.ok){alert('Could not cancel.');return;} load(); }
   async function toggleCleaner(id){ const r=await fetch(API+'/admin/cleaners/'+id+'/toggle',{method:'POST',headers:{'x-admin-key':KEY}}); if(!r.ok){alert('Could not update.');return;} load(); }
   async function delCleaner(id,name){ if(!confirm('Remove cleaner "'+name+'"? Their bookings will be unassigned.'))return; const r=await fetch(API+'/admin/cleaners/'+id,{method:'DELETE',headers:{'x-admin-key':KEY}}); if(!r.ok){alert('Could not remove.');return;} load(); }

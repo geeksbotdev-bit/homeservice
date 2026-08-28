@@ -4,7 +4,8 @@
       "Bash(npx expo *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:4000/health)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8081/)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(npx tsc *)"
     ]
   }
 }

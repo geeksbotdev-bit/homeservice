@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, FontAwesome } from '@expo/vector-icons';
+import { Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text, StatusBadge, Card } from '../../src/components';
 import { colors, radius, spacing, shadow } from '../../src/theme/theme';
 import { bookings as bookingsApi, services as servicesApi } from '../../src/services/api';
@@ -60,18 +61,31 @@ export default function Bookings() {
               <Text color={colors.textDisabled} style={{ marginTop: 12 }}>No {tab} bookings</Text>
             </View>
           )}
-          {filtered.map((b) => (
+          {filtered.map((b) => {
+            const svc = services.find((s) => s.name === b.service);
+            return (
             <Pressable key={b.id} onPress={() => router.push(`/booking/${b.id}`)}>
               <Card style={{ padding: 16 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+                  <LinearGradient colors={svc?.gradient ?? [colors.primary, colors.primary400]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.svcIcon}>
+                    <MaterialCommunityIcons name={(svc?.icon as any) ?? 'broom'} size={20} color={colors.white} />
+                  </LinearGradient>
                   <View style={{ flex: 1 }}>
                     <Text weight="bold" style={{ fontSize: 15 }}>{b.service}</Text>
                     <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 2 }}>{b.dateLabel} · {b.timeLabel}</Text>
+                    <Text variant="bodySm" color={colors.textDisabled} style={{ fontSize: 11, marginTop: 2 }}>#{b.id.slice(-6).toUpperCase()}{b.addOns?.length ? ` · +${b.addOns.length} add-on${b.addOns.length > 1 ? 's' : ''}` : ''}</Text>
                   </View>
                   <StatusBadge status={b.status} />
                 </View>
 
-                {b.cleaner && (
+                {!!b.address && (
+                  <View style={styles.addrRow}>
+                    <Feather name="map-pin" size={13} color={colors.primary} />
+                    <Text variant="bodySm" color={colors.textSecondary} style={{ flex: 1 }} numberOfLines={1}>{b.address}</Text>
+                  </View>
+                )}
+
+                {b.cleaner ? (
                   <View style={styles.cleanerRow}>
                     <View style={styles.avatar}>
                       <Text weight="bold" color={colors.primary700} style={{ fontSize: 13 }}>{b.cleaner.initials}</Text>
@@ -79,10 +93,26 @@ export default function Bookings() {
                     <View style={{ flex: 1 }}>
                       <Text weight="semibold" style={{ fontSize: 13 }}>{b.cleaner.name}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <FontAwesome name="star" size={10} color={colors.accent} />
-                        <Text variant="bodySm" color={colors.textTertiary}>{b.cleaner.rating} · {b.cleaner.jobs} jobs</Text>
+                        {b.cleaner.rating ? <FontAwesome name="star" size={10} color={colors.accent} /> : null}
+                        <Text variant="bodySm" color={colors.textTertiary}>{b.cleaner.rating ? `${b.cleaner.rating} · ` : ''}{b.cleaner.jobs} jobs</Text>
                       </View>
                     </View>
+                    <Text weight="extrabold" color={colors.primary}>{formatPKR(b.total)}</Text>
+                  </View>
+                ) : UPCOMING.includes(b.status) ? (
+                  <View style={styles.cleanerRow}>
+                    <View style={[styles.avatar, { backgroundColor: colors.primary50 }]}>
+                      <Feather name="search" size={15} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text weight="semibold" style={{ fontSize: 13 }}>Finding your cleaner…</Text>
+                      <Text variant="bodySm" color={colors.textTertiary}>We'll match you shortly</Text>
+                    </View>
+                    <Text weight="extrabold" color={colors.primary}>{formatPKR(b.total)}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.cleanerRow}>
+                    <View style={{ flex: 1 }}><Text variant="bodySm" color={colors.textTertiary}>No cleaner assigned</Text></View>
                     <Text weight="extrabold" color={colors.primary}>{formatPKR(b.total)}</Text>
                   </View>
                 )}
@@ -108,7 +138,8 @@ export default function Bookings() {
                 </View>
               </Card>
             </Pressable>
-          ))}
+            );
+          })}
         </ScrollView>
       )}
     </View>
@@ -121,6 +152,8 @@ const styles = StyleSheet.create({
   segment: { flexDirection: 'row', backgroundColor: colors.white, marginHorizontal: 16, marginTop: -14, borderRadius: radius.lg, padding: 4, ...shadow.card },
   segItem: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
   segActive: { backgroundColor: colors.primary50 },
+  svcIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  addrRow: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: colors.surface, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 4 },
   cleanerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: colors.surface, paddingTop: 12 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary200, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', gap: 8, marginTop: 12 },

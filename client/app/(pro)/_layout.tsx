@@ -1,20 +1,17 @@
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts } from '../../src/theme/theme';
 import { useUnreadCount } from '../../src/store/unread';
+import { useProLocation } from '../../src/hooks/useProLocation';
 
 export default function ProLayout() {
-  const insets = useSafeAreaInsets();
   const unread = useUnreadCount();
+  useProLocation();  // broadcast the cleaner's live location while online
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textDisabled,
-        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 10 },
-        tabBarStyle: { backgroundColor: colors.white, borderTopColor: '#F0F0F0', height: 64 + insets.bottom, paddingTop: 6, paddingBottom: 8 + insets.bottom },
+        // Hidden — the global AppTabBar (root layout) renders the bottom bar.
+        tabBarStyle: { display: 'none' },
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Jobs', tabBarIcon: ({ color, size }) => <Feather name="briefcase" size={size} color={color} /> }} />
@@ -25,6 +22,7 @@ export default function ProLayout() {
       <Tabs.Screen name="edit" options={{ href: null }} />
       <Tabs.Screen name="reviews" options={{ href: null }} />
       <Tabs.Screen name="payout" options={{ href: null }} />
+      <Tabs.Screen name="verify" options={{ href: null }} />
     </Tabs>
   );
 }

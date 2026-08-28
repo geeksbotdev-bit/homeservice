@@ -28,6 +28,14 @@ export function retrieveOrder(orderId: string) {
   return mpgs(`/order/${orderId}`, 'GET');
 }
 
+/** Refund a captured order (partial or full) via the gateway. */
+export function refundOrder(orderId: string, txnId: string, amount: number) {
+  return mpgs(`/order/${orderId}/transaction/refund-${txnId}`, 'PUT', {
+    apiOperation: 'REFUND',
+    transaction: { amount: amount.toFixed(2), currency: 'PKR' },
+  });
+}
+
 /** The Checkout.js launcher page that redirects the browser to the gateway. */
 export function launcherHtml(sessionId: string, cancelUrl: string) {
   return `<!DOCTYPE html><html><head>

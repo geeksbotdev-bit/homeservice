@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -22,6 +22,7 @@ export default function ProJobDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [b, setB] = useState<Booking | null>(null);
   const [busy, setBusy] = useState(false);
+  const [focusTick, setFocusTick] = useState(0);
 
   const load = useCallback(() => { if (id) pro.job(id).then(setB).catch(() => {}); }, [id]);
   // Poll every 5s so the customer's shared location updates live on the map.
@@ -50,13 +51,9 @@ export default function ProJobDetail() {
   const isRequest = !!b.cleaner && !b.accepted && b.status === 'confirmed';
   const next = b.accepted ? NEXT[b.status] : undefined;
 
+  // In-app navigation: re-centre the live route on our map (no external app).
   function navigate() {
-    const q = encodeURIComponent(b!.address);
-    const url = Platform.select({
-      ios: `http://maps.apple.com/?daddr=${q}`,
-      default: `https://www.google.com/maps/dir/?api=1&destination=${q}`,
-    })!;
-    Linking.openURL(url);
+    setFocusTick((t) => t + 1);
   }
 
   async function run(fn: () => Promise<any>, back = false) {
@@ -82,6 +79,7 @@ export default function ProJobDetail() {
               cust={b.custLat != null && b.custLng != null ? { lat: b.custLat, lng: b.custLng } : null}
               etaText={etaLabel}
               cleanerName="Customer"
+              focusTick={focusTick}
             />
             <Pressable style={styles.navBtn} onPress={navigate}>
               <Feather name="navigation" size={15} color={colors.white} />

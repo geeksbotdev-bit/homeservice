@@ -68,9 +68,15 @@ export default function ServiceDetail() {
           {/* Title + meta */}
           <Text variant="h1" style={{ fontSize: 24 }}>{service.name}</Text>
           <View style={styles.metaRow}>
-            <Stars value={Math.round(service.rating)} size={13} />
-            <Text weight="bold" color={colors.textSecondary} style={{ fontSize: 13 }}>{service.rating}</Text>
-            <Text variant="bodySm" color={colors.textDisabled}>({service.reviews} reviews)</Text>
+            {service.reviews ? (
+              <>
+                <Stars value={Math.round(service.rating)} size={13} />
+                <Text weight="bold" color={colors.textSecondary} style={{ fontSize: 13 }}>{service.rating}</Text>
+                <Text variant="bodySm" color={colors.textDisabled}>({service.reviews} reviews)</Text>
+              </>
+            ) : (
+              <Text weight="bold" color={colors.primary} style={{ fontSize: 13 }}>New service</Text>
+            )}
             <View style={styles.metaDot} />
             <View style={styles.durationPill}>
               <Feather name="clock" size={12} color={colors.textTertiary} />

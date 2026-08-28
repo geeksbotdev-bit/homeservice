@@ -6,6 +6,7 @@ import { Feather, FontAwesome } from '@expo/vector-icons';
 import { Text, Card, StatusBadge } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
 import { pro } from '../../src/services/api';
+import { showToast } from '../../src/store/toast';
 import { formatPKR } from '../../src/utils';
 import type { Booking, BookingStatus } from '../../src/data/types';
 
@@ -23,8 +24,12 @@ export default function ProJobs() {
   const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [verif, setVerif] = useState<string>('verified'); // assume ok until known
 
-  const load = useCallback(() => { pro.jobs().then(setData).catch(() => {}); }, []);
+  const load = useCallback(() => {
+    pro.jobs().then(setData).catch(() => {});
+    pro.profile().then((p) => setVerif(p.verifStatus ?? 'unverified')).catch(() => {});
+  }, []);
   // Poll every 5s while focused so newly posted jobs / requests appear live.
   useFocusEffect(useCallback(() => {
     load();
@@ -36,9 +41,22 @@ export default function ProJobs() {
     setBusy(id);
     try {
       await fn();
-    } catch { /* e.g. a scheduled job claimed by someone else first — just refresh */ }
+    } catch (e: any) {
+      // e.g. not verified (403), or a scheduled job claimed by someone else first.
+      showToast('Could not accept', e?.message || 'Please try again');
+    }
     await pro.jobs().then(setData).catch(() => {});
     setBusy(null);
+  }
+
+  // Block accepting until identity is verified — send them to the verify screen.
+  function tryClaim(id: string) {
+    if (verif !== 'verified') {
+      showToast('Verify your identity', 'Complete verification to accept jobs');
+      router.push('/(pro)/verify');
+      return;
+    }
+    act(id, () => pro.claim(id));
   }
 
   const open = (b: Booking) => router.push(`/pro-job/${b.id}`);
@@ -54,6 +72,26 @@ export default function ProJobs() {
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }} showsVerticalScrollIndicator={false}>
+          {/* Identity verification gate */}
+          {verif !== 'verified' && (
+            <Pressable onPress={() => router.push('/(pro)/verify')}>
+              <Card style={[styles.verifBanner, verif === 'rejected' ? { borderColor: colors.error } : verif === 'pending' ? { borderColor: colors.primary } : { borderColor: colors.accent }]}>
+                <Feather name={verif === 'pending' ? 'clock' : verif === 'rejected' ? 'alert-circle' : 'shield'} size={20} color={verif === 'rejected' ? colors.error : colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text weight="bold" style={{ fontSize: 14 }}>
+                    {verif === 'pending' ? 'Verification under review' : verif === 'rejected' ? 'Verification rejected' : 'Verify your identity'}
+                  </Text>
+                  <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 2 }}>
+                    {verif === 'pending' ? 'We’re reviewing your documents. You’ll be notified once approved.'
+                      : verif === 'rejected' ? 'Tap to review and re-submit your documents.'
+                      : 'Upload your CNIC and a selfie to start accepting jobs.'}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.textDisabled} />
+              </Card>
+            </Pressable>
+          )}
+
           {/* Available scheduled jobs — open pool, first cleaner to claim gets it */}
           {data.available.length > 0 && (
             <Section title={`Available jobs (${data.available.length})`}>
@@ -73,7 +111,7 @@ export default function ProJobs() {
                     </View>
                     <Text weight="extrabold" color={colors.primary} style={{ fontSize: 17, marginTop: 4 }}>{formatPKR(b.total)}</Text>
                   </Pressable>
-                  <Pressable onPress={() => act(b.id, () => pro.claim(b.id))} disabled={busy === b.id} style={[styles.btn, styles.accept]}>
+                  <Pressable onPress={() => tryClaim(b.id)} disabled={busy === b.id} style={[styles.btn, styles.accept]}>
                     {busy === b.id ? <ActivityIndicator color={colors.white} size="small" /> : <><Feather name="check-circle" size={15} color={colors.white} /><Text weight="bold" color={colors.white} style={{ fontSize: 13 }}>Accept this job</Text></>}
                   </Pressable>
                 </Card>
@@ -97,7 +135,7 @@ export default function ProJobs() {
                     </View>
                     <Text weight="extrabold" color={colors.primary} style={{ fontSize: 17, marginTop: 4 }}>{formatPKR(b.total)}</Text>
                   </Pressable>
-                  <Pressable onPress={() => act(b.id, () => pro.claim(b.id))} disabled={busy === b.id} style={[styles.btn, styles.accept]}>
+                  <Pressable onPress={() => tryClaim(b.id)} disabled={busy === b.id} style={[styles.btn, styles.accept]}>
                     {busy === b.id ? <ActivityIndicator color={colors.white} size="small" /> : <><Feather name="check" size={15} color={colors.white} /><Text weight="bold" color={colors.white} style={{ fontSize: 13 }}>Accept this job</Text></>}
                   </Pressable>
                 </Card>
@@ -178,4 +216,5 @@ const styles = StyleSheet.create({
   reject: { borderWidth: 1.5, borderColor: colors.error, backgroundColor: colors.errorBg },
   accept: { backgroundColor: colors.primary, ...shadow.button },
   empty: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 20, alignItems: 'center', ...shadow.soft },
+  verifBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderWidth: 1.5 },
 });

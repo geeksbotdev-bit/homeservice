@@ -119,6 +119,17 @@ model Cleaner {
   preferred  Boolean   @default(false)
   available  Boolean   @default(true)
   withdrawn  Int       @default(0) // total earnings already withdrawn (PKR)
+  lat        Float?    // last known live location (pushed while online)
+  lng        Float?
+  locAt      DateTime? // when that location was reported
+  // ─ Identity verification ─
+  verifStatus String   @default("unverified") // unverified | pending | verified | rejected
+  verifNote   String?  // admin's note on rejection
+  cnic        String?  // CNIC / national ID number
+  idFront     String?  // uploaded document image URLs
+  idBack      String?
+  selfie      String?
+  verifAt     DateTime?
   bookings   Booking[]
   favoritedBy Favorite[]
 }
@@ -180,7 +191,8 @@ model Payment {
   method    String
   amount    Int
   txnId     String
-  status    String   @default("paid") // pending | paid | failed
+  status    String   @default("paid") // pending | paid | failed | refunded
+  refundAmount     Int?     // amount refunded to the customer (after cancellation fee)
   // Bank Alfalah (MPGS) gateway fields
   orderId          String?
   sessionId        String?

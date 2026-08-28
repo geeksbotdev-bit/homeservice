@@ -25,7 +25,7 @@ function buildHtml(lat: number, lng: number, zoom: number, interactive: boolean)
 </head><body><div id="map"></div>
 <script>
   var map = L.map('map',{zoomControl:true,attributionControl:true}).setView([${lat},${lng}], ${zoom});
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri'}).addTo(map);
   var icon = L.divIcon({className:'',html:'<div style="width:26px;height:26px;border-radius:50% 50% 50% 0;background:#0B7C82;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);transform:rotate(-45deg)"></div>',iconSize:[26,26],iconAnchor:[13,26]});
   var marker = L.marker([${lat},${lng}],{draggable:${interactive}, icon:icon}).addTo(map);
   function post(o){ try{ if(window.ReactNativeWebView){window.ReactNativeWebView.postMessage(JSON.stringify(o));} else {parent.postMessage(JSON.stringify(o),'*');} }catch(e){} }

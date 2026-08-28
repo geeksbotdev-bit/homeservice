@@ -117,10 +117,13 @@ export const bookings = {
 
 // ─── Dispatch (Book Now) ───────────────────────────────────────────────
 export const dispatch = {
-  // GET /dispatch/nearby?service=… -> candidate cleaners
-  nearby: () => (USE_MOCKS ? delay(CLEANERS, 300) : request<Cleaner[]>('/dispatch/nearby')),
+  // GET /dispatch/nearby?lat=&lng= -> nearby cleaners with real distance + coords
+  nearby: (lat?: number, lng?: number) => {
+    if (USE_MOCKS) return delay(CLEANERS, 300);
+    const q = lat != null && lng != null ? `?lat=${lat}&lng=${lng}` : '';
+    return request<Cleaner[]>(`/dispatch/nearby${q}`);
+  },
   // The actual matching is driven server-side; the Finding screen polls this.
-  // GET /dispatch/:bookingId/status -> { matched, cleaner }
 };
 
 // ─── Cleaners ──────────────────────────────────────────────────────────
@@ -136,7 +139,7 @@ export const cleaners = {
 };
 
 // ─── Messaging ─────────────────────────────────────────────────────────
-export interface ChatMeta { name: string; initials: string; phone?: string; service: string; status: string }
+export interface ChatMeta { name: string; initials: string; phone?: string; online?: boolean; service: string; status: string }
 export interface ProReview { rating: number; review: string; service: string; date: string; customer: string }
 
 export const chat = {
@@ -210,6 +213,15 @@ export const pro = {
   // PATCH /pro/profile { name?, bio?, available? }
   updateProfile: (patch: { name?: string; bio?: string; available?: boolean }) =>
     USE_MOCKS ? delay({ ...CLEANERS[0], ...patch }) : request<Cleaner>('/pro/profile', { method: 'PATCH', body: patch }),
+  // POST /pro/location { lat, lng } — push my live GPS while online
+  pushLocation: (lat: number, lng: number) =>
+    USE_MOCKS ? delay({ ok: true }) : request('/pro/location', { method: 'POST', body: { lat, lng } }),
+  // POST /uploads { dataUrl } -> { url } — upload a base64 image, get its URL
+  uploadImage: (dataUrl: string) =>
+    USE_MOCKS ? delay({ url: dataUrl }) : request<{ url: string }>('/uploads', { method: 'POST', body: { dataUrl } }),
+  // POST /pro/verify — submit identity documents for verification
+  submitVerification: (payload: { cnic: string; idFront: string; idBack?: string; selfie: string }) =>
+    USE_MOCKS ? delay({ ...CLEANERS[0], verifStatus: 'pending' }) : request<Cleaner>('/pro/verify', { method: 'POST', body: payload }),
   // GET /pro/jobs -> { available, requests, active, history }
   jobs: () =>
     USE_MOCKS

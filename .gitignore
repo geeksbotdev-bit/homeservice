@@ -33,6 +33,10 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# ── Uploaded ID documents / selfies (never commit user documents) ──
+uploads/
+server/uploads/
+
 # ── OS / editor ──
 .DS_Store
 Thumbs.db

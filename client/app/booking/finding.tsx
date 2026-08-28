@@ -3,12 +3,31 @@ import { View, StyleSheet, Animated, Easing, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import Svg, { Rect, Line } from 'react-native-svg';
+import * as Location from 'expo-location';
 import { Text, Button, Logo } from '../../src/components';
-import { colors, radius, shadow } from '../../src/theme/theme';
+import { colors, shadow } from '../../src/theme/theme';
 import { dispatch, bookings as bookingsApi } from '../../src/services/api';
 import { useBooking } from '../../src/store/booking';
+import { NearbyMap, type NearbyPin } from '../../src/components/NearbyMap';
 import type { Cleaner, Booking } from '../../src/data/types';
+
+// Karachi city centre — fallback only if we can't read GPS or the booking pin.
+const DEFAULT_LOC = { lat: 24.8607, lng: 67.0011 };
+
+// Deterministic bearing (radians) for a cleaner so their dot doesn't jump
+// between polls — derived from the cleaner id.
+function bearing(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return ((h % 360) * Math.PI) / 180;
+}
+
+// Place a cleaner `km` away from the user at a given bearing.
+function offset(lat: number, lng: number, km: number, ang: number) {
+  const dLat = (km / 111) * Math.cos(ang);
+  const dLng = (km / (111 * Math.cos((lat * Math.PI) / 180))) * Math.sin(ang);
+  return { lat: lat + dLat, lng: lng + dLng };
+}
 
 const STATUSES = [
   'Sending your request to cleaners nearby…',
@@ -25,22 +44,53 @@ export default function Finding() {
   const [statusIdx, setStatusIdx] = useState(0);
   const [progress, setProgress] = useState(12);
 
-  const pulse = useRef(new Animated.Value(0)).current;
   const spin = useRef(new Animated.Value(0)).current;
   const barW = useRef(new Animated.Value(12)).current;
+
+  // Customer's live location (map centre) + a drift tick so cleaner dots move.
+  const [userLoc, setUserLoc] = useState(DEFAULT_LOC);
+  const [tick, setTick] = useState(0);
+  const locRef = useRef(userLoc);
+  useEffect(() => { locRef.current = userLoc; }, [userLoc]);
 
   // The cleaner the request was actually dispatched to (from the live booking).
   const assigned = booking?.cleaner ?? null;
   const matched = !!booking?.accepted;
 
+  // 1) Lock the map onto the customer's real position — booking pin first,
+  //    then live GPS, then a city-centre fallback.
   useEffect(() => {
-    Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 2200, easing: Easing.out(Easing.ease), useNativeDriver: true })).start();
+    let alive = true;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          if (alive) setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        }
+      } catch { /* keep fallback */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    if (booking?.custLat != null && booking?.custLng != null) {
+      setUserLoc({ lat: booking.custLat, lng: booking.custLng });
+    }
+  }, [booking?.custLat, booking?.custLng]);
+
+  useEffect(() => {
     Animated.loop(Animated.timing(spin, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true })).start();
 
-    dispatch.nearby().then((raw) => {
-      const list = raw.filter((c) => c.name && c.name.trim() && c.name !== 'New Cleaner');
-      setCandidates(list.slice(0, 3));
-    }).catch(() => {});
+    // 2) Live nearby cleaners straight from the API (with our live position so
+    //    the server returns real distances + coordinates) — refreshed every 3s.
+    const loadNearby = () => {
+      dispatch.nearby(locRef.current.lat, locRef.current.lng).then((raw) => {
+        const list = raw.filter((c) => c.name && c.name.trim() && c.name !== 'New Cleaner');
+        setCandidates(list.slice(0, 6));
+      }).catch(() => {});
+    };
+    loadNearby();
 
     // The request is broadcast to all cleaners. Poll the real booking and
     // proceed only when the FIRST cleaner accepts — never auto-match.
@@ -49,8 +99,6 @@ export default function Finding() {
     const poll = () => {
       if (!id) return;
       bookingsApi.get(id).then((bk) => {
-        // Never search until payment is actually completed. If the booking is
-        // still pending OR has no PAID payment, bounce back to the payment screen.
         const paid = bk.payment?.status === 'paid';
         if (bk.status === 'pending' || !paid) {
           router.replace({ pathname: '/booking/payment', params: { id } });
@@ -61,9 +109,11 @@ export default function Finding() {
     };
     poll();
     const pollT = setInterval(poll, 2000);
+    const nearT = setInterval(loadNearby, 3000);
+    const drift = setInterval(() => setTick((t) => t + 1), 2400);  // makes dots glide
     const prog = setInterval(() => setProgress((p) => (p >= 90 ? p : p + 2)), 300);
     const st = setInterval(() => setStatusIdx((s) => (s + 1) % STATUSES.length), 1600);
-    return () => { clearInterval(pollT); clearInterval(prog); clearInterval(st); };
+    return () => { clearInterval(pollT); clearInterval(nearT); clearInterval(drift); clearInterval(prog); clearInterval(st); };
   }, [id]);
 
   // On accept: snap progress to full and persist the matched cleaner.
@@ -80,10 +130,24 @@ export default function Finding() {
 
   // Show the assigned cleaner first in the "nearby" strip.
   const nearbyList = (() => {
-    if (!assigned) return candidates;
+    if (!assigned) return candidates.slice(0, 3);
     const rest = candidates.filter((c) => c.id !== assigned.id);
     return [assigned, ...rest].slice(0, 3);
   })();
+
+  // Live map pins from the API. Cleaners that reported a real GPS fix are
+  // plotted EXACTLY where they are; the rest sit near you by their distance
+  // (nudged each tick so they feel alive, like idling drivers).
+  const pins: NearbyPin[] = candidates.map((c) => {
+    const isMatched = matched && assigned?.id === c.id;
+    if (c.live && c.lat != null && c.lng != null) {
+      return { id: c.id, lat: c.lat, lng: c.lng, initials: c.initials, matched: isMatched };
+    }
+    const ang = bearing(c.id) + tick * (0.06 + (bearing(c.id) % 0.4)) * 0.5;
+    const km = Math.max(0.4, (c.distanceKm ?? 1) + Math.sin(tick + bearing(c.id)) * 0.15);
+    const { lat, lng } = offset(userLoc.lat, userLoc.lng, km, ang);
+    return { id: c.id, lat, lng, initials: c.initials, matched: isMatched };
+  });
 
   // Payment already happened before the search — a match goes straight to tracking.
   function goToTracking() {
@@ -93,40 +157,17 @@ export default function Finding() {
 
   return (
     <View style={styles.root}>
-      {/* ── Map area ── */}
+      {/* ── Map area (real, live) ── */}
       <View style={styles.mapArea}>
-        <Svg width="100%" height="100%" viewBox="0 0 393 440" preserveAspectRatio="xMidYMid slice">
-          <Rect width="393" height="440" fill="#EDE8DF" />
-          <Rect x="67" y="0" width="123" height="112" rx="3" fill="#C8DEB4" opacity="0.6" />
-          <Rect x="270" y="344" width="123" height="96" rx="3" fill="#C8DEB4" opacity="0.5" />
-          <Rect x="0" y="178" width="61" height="100" rx="3" fill="#B3DFE2" opacity="0.5" />
-          {[56, 112, 172, 234, 284, 338, 396].map((y) => <Rect key={y} x="0" y={y} width="393" height="6" fill="#fff" />)}
-          {[61, 190, 264, 328].map((x) => <Rect key={x} x={x} y="0" width="6" height="440" fill="#fff" />)}
-        </Svg>
+        <NearbyMap latitude={userLoc.lat} longitude={userLoc.lng} cleaners={pins} />
 
-        {/* Radar */}
-        <View style={styles.radar} pointerEvents="none">
-          {[0, 1, 2].map((i) => {
-            const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 6] });
-            const opacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] });
-            return <Animated.View key={i} style={[styles.ring, { transform: [{ scale }], opacity }]} />;
-          })}
-          <View style={styles.radarCore}><View style={styles.radarDot} /></View>
+        {/* "N cleaners nearby" chip */}
+        <View style={styles.countChip} pointerEvents="none">
+          <View style={styles.countDot} />
+          <Text weight="bold" color={colors.primary700} style={{ fontSize: 12 }}>
+            {candidates.length > 0 ? `${candidates.length} cleaner${candidates.length > 1 ? 's' : ''} nearby` : 'Looking around you…'}
+          </Text>
         </View>
-
-        {/* Cleaner pins */}
-        {nearbyList.map((c, i) => {
-          const pos = [{ top: 70, left: 50 }, { top: 48, left: 250 }, { top: 170, left: 300 }][i];
-          const isMatched = matched && assigned?.id === c.id;
-          return (
-            <View key={c.id} style={[styles.pin, pos]} pointerEvents="none">
-              <View style={[styles.pinAvatar, isMatched && { backgroundColor: colors.success }]}>
-                <Text weight="extrabold" color={isMatched ? colors.white : colors.primary700} style={{ fontSize: 12 }}>{c.initials}</Text>
-              </View>
-              <View style={styles.pinLabel}><Text weight="bold" color={colors.primary} style={{ fontSize: 10 }}>{c.distanceKm} km</Text></View>
-            </View>
-          );
-        })}
 
         {/* Transparent nav */}
         <SafeAreaView edges={['top']} style={styles.nav}>
@@ -217,13 +258,8 @@ export default function Finding() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#EDE8DF' },
   mapArea: { flex: 1, position: 'relative', overflow: 'hidden' },
-  radar: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', marginBottom: 60 },
-  ring: { position: 'absolute', width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: colors.primary },
-  radarCore: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', ...shadow.button },
-  radarDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.white },
-  pin: { position: 'absolute', alignItems: 'center', gap: 3 },
-  pinAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.primary200, borderWidth: 3, borderColor: colors.white, alignItems: 'center', justifyContent: 'center', ...shadow.card },
-  pinLabel: { backgroundColor: colors.white, borderRadius: 7, paddingVertical: 2, paddingHorizontal: 7, ...shadow.soft },
+  countChip: { position: 'absolute', bottom: 40, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: colors.white, borderRadius: 22, paddingHorizontal: 14, height: 38, ...shadow.card },
+  countDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
   nav: { position: 'absolute', top: 0, left: 0, right: 0, height: 60 },
   navBtn: { position: 'absolute', top: 8, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center', ...shadow.soft },
   navPill: { position: 'absolute', top: 8, alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, paddingHorizontal: 12, height: 36, justifyContent: 'center', ...shadow.soft },

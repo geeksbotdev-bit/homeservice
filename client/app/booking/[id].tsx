@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome } from '@expo/vector-icons';
@@ -147,10 +147,28 @@ export default function BookingDetail() {
     b.status === 'completed' ? 'Completed' :
     b.status === 'confirmed' ? 'Assigning' : '—';
 
-  async function cancel() {
+  async function doCancel() {
     if (!b) return;
-    await bookingsApi.cancel(b.id);
+    const res: any = await bookingsApi.cancel(b.id).catch(() => ({}));
     setB({ ...b, status: 'cancelled' });
+    const refund = res?.refund ?? 0;
+    if (refund > 0) {
+      const msg = `PKR ${refund.toLocaleString('en-PK')} will be refunded (30% cancellation fee applied).`;
+      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Refund initiated', msg);
+    }
+  }
+  function cancel() {
+    if (!b) return;
+    const paid = b.payment?.status === 'paid';
+    const refund = paid ? Math.round(b.total * 0.7) : 0;
+    const q = paid
+      ? `Cancel this booking? You'll be refunded PKR ${refund.toLocaleString('en-PK')} (30% cancellation fee applies).`
+      : 'Cancel this booking?';
+    if (Platform.OS === 'web') { if (window.confirm(q)) doCancel(); return; }
+    Alert.alert('Cancel booking', q, [
+      { text: 'Keep', style: 'cancel' },
+      { text: 'Cancel booking', style: 'destructive', onPress: doCancel },
+    ]);
   }
 
   async function receipt() {
@@ -188,7 +206,13 @@ export default function BookingDetail() {
         <Card style={{ overflow: 'hidden' }}>
           {b.cleaner && activeTracking ? (
             <LiveMap
-              pro={b.proLat != null && b.proLng != null ? { lat: b.proLat, lng: b.proLng } : null}
+              // Prefer the location the cleaner shares from the job screen;
+              // fall back to their general live position (pushed while online)
+              // so the dot keeps moving even if they're in a nav app.
+              pro={
+                b.proLat != null && b.proLng != null ? { lat: b.proLat, lng: b.proLng }
+                : (b.cleaner.lat != null && b.cleaner.lng != null ? { lat: b.cleaner.lat, lng: b.cleaner.lng } : null)
+              }
               cust={mine ?? (b.custLat != null && b.custLng != null ? { lat: b.custLat, lng: b.custLng } : null)}
               etaText={etaText}
               cleanerName={b.cleaner.name}
@@ -283,6 +307,16 @@ export default function BookingDetail() {
           </View>
         </Card>
 
+        {/* Refunded banner */}
+        {b.payment?.status === 'refunded' && (
+          <View style={styles.refundCard}>
+            <Feather name="rotate-ccw" size={16} color={colors.success} />
+            <Text variant="bodySm" color={colors.textSecondary} style={{ flex: 1 }}>
+              Refunded <Text weight="bold">{formatPKR(b.payment.refundAmount ?? Math.round(b.total * 0.7))}</Text> to your payment method (30% cancellation fee applied).
+            </Text>
+          </View>
+        )}
+
         {/* Actions */}
         {isPaid && (
           <Button label="Download Receipt" variant="secondary" icon="download" onPress={receipt} style={{ borderColor: colors.primary }} />
@@ -332,6 +366,7 @@ const styles = StyleSheet.create({
   tlDotActive: { backgroundColor: colors.primary, borderColor: colors.primary200 },
   tlLine: { width: 2, flex: 1, minHeight: 18, backgroundColor: colors.border },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.surface, paddingTop: 12 },
+  refundCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.successBg, borderRadius: radius.lg, padding: 14 },
   radarWrap: { width: 180, height: 180, alignItems: 'center', justifyContent: 'center' },
   radarRing: { position: 'absolute', borderRadius: 999, backgroundColor: colors.primary },
   radarCore: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', ...shadow.card },

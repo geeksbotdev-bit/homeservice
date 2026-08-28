@@ -73,11 +73,13 @@ export default function Chat() {
         </Pressable>
         <View style={styles.avatar}>
           <Text weight="bold" color={colors.primary700} style={{ fontSize: 14 }}>{otherInitials}</Text>
-          <View style={styles.online} />
+          {meta?.online && <View style={styles.online} />}
         </View>
         <View style={{ flex: 1 }}>
           <Text weight="bold" style={{ fontSize: 15 }}>{otherName}</Text>
-          <Text variant="bodySm" color={colors.success}>Online{meta?.service ? ` · ${meta.service}` : ''}</Text>
+          <Text variant="bodySm" color={meta?.online ? colors.success : colors.textTertiary}>
+            {meta?.online ? 'Online' : 'Offline'}{meta?.service ? ` · ${meta.service}` : ''}
+          </Text>
         </View>
         <Pressable style={[styles.circle, { backgroundColor: colors.primary }]} onPress={() => meta?.phone && Linking.openURL(`tel:${meta.phone}`)}>
           <Feather name="phone" size={17} color={colors.white} />

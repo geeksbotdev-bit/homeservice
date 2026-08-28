@@ -1,23 +1,54 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, RefreshControl, Modal } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, FontAwesome } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, ServiceIcon } from '../../src/components';
+import { showToast } from '../../src/store/toast';
 import { colors, radius, spacing, shadow } from '../../src/theme/theme';
-import { services as servicesApi, user as userApi, notifications as notifApi } from '../../src/services/api';
+import { services as servicesApi, user as userApi, notifications as notifApi, bookings as bookingsApi } from '../../src/services/api';
 import { formatPKR } from '../../src/utils';
 import { useBooking } from '../../src/store/booking';
-import type { Service, User } from '../../src/data/types';
+import type { Service, User, Booking, AppNotification } from '../../src/data/types';
+
+const ACTIVE = ['confirmed', 'on_the_way', 'arrived', 'in_progress'];
+
+// Service departments — only Cleaning is live; the rest are "Coming soon".
+const DEPARTMENTS: { key: string; label: string; icon: any; active?: boolean }[] = [
+  { key: 'cleaning', label: 'Cleaning', icon: 'broom', active: true },
+  { key: 'laundry', label: 'Laundry', icon: 'washing-machine' },
+  { key: 'plumbing', label: 'Plumbing', icon: 'pipe-wrench' },
+  { key: 'electric', label: 'Electrician', icon: 'flash' },
+  { key: 'ac', label: 'AC Service', icon: 'air-conditioner' },
+  { key: 'pest', label: 'Pest Control', icon: 'bug' },
+];
+const STATUS_LABEL: Record<string, string> = {
+  confirmed: 'Finding your cleaner', on_the_way: 'On the way', arrived: 'Arrived', in_progress: 'Cleaning in progress',
+};
 
 export default function Home() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { startBooking, setMode } = useBooking();
+  const [showNotif, setShowNotif] = useState(false);
+  const [notifs, setNotifs] = useState<AppNotification[] | null>(null);
+
+  async function openNotifs() {
+    setShowNotif(true);
+    setNotifs(null);
+    try {
+      const r = await notifApi.list();
+      setNotifs(r.items);
+      setUnread(0);
+      notifApi.readAll().catch(() => {});
+    } catch { setNotifs([]); }
+  }
   const [mode, setLocalMode] = useState<'now' | 'later'>('now');
   const [list, setList] = useState<Service[]>([]);
   const [me, setMe] = useState<User | null>(null);
   const [query, setQuery] = useState('');
   const [unread, setUnread] = useState(0);
+  const [active, setActive] = useState<Booking | null>(null);
   const [cat, setCat] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -67,6 +98,7 @@ export default function Home() {
   useFocusEffect(useCallback(() => {
     userApi.me().then(setMe).catch(() => {});
     notifApi.list().then((r) => setUnread(r.unread)).catch(() => {});
+    bookingsApi.list().then((bs) => setActive(bs.find((b) => ACTIVE.includes(b.status)) ?? null)).catch(() => {});
   }, []));
 
   function openService(s: Service) {
@@ -83,10 +115,10 @@ export default function Home() {
           <View>
             <Text color="rgba(255,255,255,0.65)" style={{ fontSize: 13 }}>{greeting},</Text>
             <Text weight="extrabold" color={colors.white} style={{ fontSize: 21, letterSpacing: -0.4 }}>
-              {me?.name ?? 'Welcome'} 👋
+              {me?.name ?? 'Welcome'}
             </Text>
           </View>
-          <Pressable style={styles.bell} onPress={() => router.push('/notifications')}>
+          <Pressable style={styles.bell} onPress={openNotifs}>
             <Feather name="bell" size={20} color={colors.white} />
             {unread > 0 && <View style={styles.bellDot} />}
           </Pressable>
@@ -94,7 +126,9 @@ export default function Home() {
 
         <Pressable style={styles.location} onPress={() => router.push('/location')}>
           <Feather name="map-pin" size={15} color={colors.white} />
-          <Text weight="semibold" color={colors.white} style={{ flex: 1, fontSize: 13 }}>{me?.location ?? 'Set location'}</Text>
+          <Text weight="semibold" color={colors.white} style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>
+            {me?.location ? (me.location.startsWith('Current location (') ? 'Current location' : me.location) : 'Set location'}
+          </Text>
           <Feather name="chevron-down" size={14} color="rgba(255,255,255,0.7)" />
         </Pressable>
       </SafeAreaView>
@@ -126,6 +160,25 @@ export default function Home() {
           </Pressable>
         </View>
 
+        {/* Departments — Cleaning live, others coming soon (minimal) */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18 }} contentContainerStyle={{ gap: 14, paddingTop: 12, paddingBottom: 4, paddingHorizontal: 2 }}>
+          {DEPARTMENTS.map((d) => (
+            <Pressable
+              key={d.key}
+              onPress={() => { if (!d.active) showToast('Coming soon', `${d.label} service is launching soon`); }}
+              style={styles.dept}
+            >
+              <View style={styles.deptIconWrap}>
+                <View style={[styles.deptIcon, d.active ? styles.deptIconOn : { opacity: 0.55 }]}>
+                  <MaterialCommunityIcons name={d.icon} size={22} color={d.active ? colors.white : colors.textSecondary} />
+                </View>
+                {!d.active && <View style={styles.soonBadge}><Text weight="extrabold" color={colors.white} style={{ fontSize: 7.5, letterSpacing: 0.3 }}>SOON</Text></View>}
+              </View>
+              <Text weight={d.active ? 'bold' : 'medium'} style={styles.deptLabel} color={d.active ? colors.primary : colors.textTertiary} numberOfLines={2}>{d.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
         {cat && (
           <View style={styles.activeFilter}>
             <Text variant="bodySm" weight="semibold" color={colors.primary700}>Category: {cat}</Text>
@@ -133,6 +186,18 @@ export default function Home() {
               <Feather name="x" size={14} color={colors.primary700} />
             </Pressable>
           </View>
+        )}
+
+        {/* Active booking banner — quick access to live tracking */}
+        {active && (
+          <Pressable style={styles.activeBanner} onPress={() => router.push(`/booking/${active.id}`)}>
+            <View style={styles.activePulse}><Feather name="navigation" size={16} color={colors.white} /></View>
+            <View style={{ flex: 1 }}>
+              <Text weight="bold" color={colors.white} style={{ fontSize: 14 }}>{active.service}</Text>
+              <Text variant="bodySm" color="rgba(255,255,255,0.85)">{STATUS_LABEL[active.status] ?? 'In progress'}{active.cleaner ? ` · ${active.cleaner.name}` : ''}</Text>
+            </View>
+            <View style={styles.trackChip}><Text weight="bold" color={colors.primary} style={{ fontSize: 12 }}>Track</Text></View>
+          </Pressable>
         )}
 
         {/* Book Now / Schedule toggle */}
@@ -191,9 +256,15 @@ export default function Home() {
                     </View>
                     <Text variant="bodySm" color={colors.textTertiary} style={{ marginBottom: 6 }}>{s.tagline}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                      <FontAwesome name="star" size={11} color={colors.accent} />
-                      <Text variant="bodySm" weight="semibold" color={colors.textSecondary}>{s.rating}</Text>
-                      <Text variant="bodySm" color={colors.textDisabled}>({s.reviews})</Text>
+                      {s.reviews ? (
+                        <>
+                          <FontAwesome name="star" size={11} color={colors.accent} />
+                          <Text variant="bodySm" weight="semibold" color={colors.textSecondary}>{s.rating}</Text>
+                          <Text variant="bodySm" color={colors.textDisabled}>({s.reviews})</Text>
+                        </>
+                      ) : (
+                        <Text variant="bodySm" weight="semibold" color={colors.primary}>New</Text>
+                      )}
                       <Text color={colors.border}> · </Text>
                       <Text variant="bodySm" color={colors.textDisabled}>{s.duration}</Text>
                     </View>
@@ -213,6 +284,41 @@ export default function Home() {
           </View>
         )}
       </ScrollView>
+
+      {/* Notifications dropdown */}
+      <Modal visible={showNotif} transparent animationType="fade" onRequestClose={() => setShowNotif(false)}>
+        <Pressable style={styles.notifBackdrop} onPress={() => setShowNotif(false)}>
+          <Pressable style={[styles.notifPanel, { marginTop: insets.top + 52 }]} onPress={() => {}}>
+            <View style={styles.notifHead}>
+              <Text weight="extrabold" style={{ fontSize: 15 }}>Notifications</Text>
+              <Pressable onPress={() => setShowNotif(false)} hitSlop={8}><Feather name="x" size={18} color={colors.textTertiary} /></Pressable>
+            </View>
+            {notifs === null ? (
+              <ActivityIndicator color={colors.primary} style={{ paddingVertical: 26 }} />
+            ) : notifs.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 30, gap: 8 }}>
+                <Feather name="bell-off" size={26} color={colors.border} />
+                <Text color={colors.textDisabled} style={{ fontSize: 13 }}>No notifications yet</Text>
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                {notifs.map((n, i) => (
+                  <View key={n.id} style={[styles.notifRow, i < notifs.length - 1 && styles.notifDivider]}>
+                    <View style={styles.notifIcon}><Feather name={n.icon as any} size={15} color={colors.primary} /></View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                        <Text weight="bold" style={{ fontSize: 13, flex: 1 }} numberOfLines={1}>{n.title}</Text>
+                        <Text variant="bodySm" color={colors.textDisabled} style={{ fontSize: 11 }}>{n.time}</Text>
+                      </View>
+                      <Text variant="bodySm" color={colors.textTertiary} numberOfLines={2}>{n.body}</Text>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -229,6 +335,15 @@ const styles = StyleSheet.create({
   filterBtn: { width: 32, height: 32, backgroundColor: colors.primary50, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   filterBtnOn: { backgroundColor: colors.primary },
   activeFilter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primary50, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 14, marginTop: -2 },
+  dept: { alignItems: 'center', gap: 8, width: 66 },
+  deptLabel: { fontSize: 11, textAlign: 'center', lineHeight: 14, height: 28 },
+  deptIconWrap: { width: 54, height: 54, alignItems: 'center', justifyContent: 'center' },
+  deptIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  deptIconOn: { backgroundColor: colors.primary, ...shadow.button },
+  soonBadge: { position: 'absolute', top: -6, right: -6, backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1.5, borderWidth: 1.5, borderColor: colors.white },
+  activeBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.primary, borderRadius: radius.lg, padding: 12, marginBottom: 16, ...shadow.button },
+  activePulse: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  trackChip: { backgroundColor: colors.white, borderRadius: radius.pill, paddingVertical: 7, paddingHorizontal: 14 },
   toggle: { backgroundColor: colors.border, borderRadius: radius.lg, padding: 3, flexDirection: 'row', marginBottom: 20 },
   toggleItem: { flex: 1, height: 40, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   toggleActive: { backgroundColor: colors.primary },
@@ -237,5 +352,11 @@ const styles = StyleSheet.create({
   tag: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 6 },
   plus: { width: 38, height: 38, backgroundColor: colors.primary, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', ...shadow.button },
   retryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 20 },
+  notifBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', alignItems: 'flex-end', paddingHorizontal: 14 },
+  notifPanel: { width: 320, maxWidth: '92%', backgroundColor: colors.white, borderRadius: radius.xl, overflow: 'hidden', ...shadow.card },
+  notifHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.surface },
+  notifRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14 },
+  notifDivider: { borderBottomWidth: 1, borderBottomColor: colors.surface },
+  notifIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary50, alignItems: 'center', justifyContent: 'center' },
 });
 

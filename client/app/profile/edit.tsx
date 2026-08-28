@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Text, Button, NavBar } from '../../src/components';
+import { Text, Button, NavBar, PhoneField, toLocalPk, toFullPk } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { user as userApi } from '../../src/services/api';
 import { initials } from '../../src/utils';
@@ -26,7 +26,7 @@ export default function EditProfile() {
 
   useEffect(() => {
     userApi.me().then((me: User) => {
-      setName(me.name ?? ''); setEmail(me.email ?? ''); setPhone(me.phone ?? '');
+      setName(me.name ?? ''); setEmail(me.email ?? ''); setPhone(toLocalPk(me.phone));
       setGender(me.gender ?? ''); setDob(me.dob ?? ''); setLocation(me.location ?? '');
       setAvatar(me.avatarUrl); setLoaded(true);
     });
@@ -50,7 +50,7 @@ export default function EditProfile() {
     if (!name.trim()) return;
     setSaving(true);
     await userApi.update({
-      name: name.trim(), email: email.trim(), phone: phone.trim(),
+      name: name.trim(), email: email.trim(), phone: toFullPk(phone),
       gender, dob: dob.trim(), location: location.trim(), avatarUrl: avatar,
     });
     setSaving(false);
@@ -79,7 +79,7 @@ export default function EditProfile() {
           <TextInput style={styles.input} placeholder="you@example.com" placeholderTextColor={colors.textDisabled} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" editable={loaded} />
         </Field>
         <Field label="Phone">
-          <TextInput style={styles.input} placeholder="+92 3XX XXXXXXX" placeholderTextColor={colors.textDisabled} value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={loaded} />
+          <PhoneField value={phone} onChangeText={setPhone} editable={loaded} />
         </Field>
 
         <Field label="Gender">

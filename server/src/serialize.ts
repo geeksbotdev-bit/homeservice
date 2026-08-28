@@ -35,6 +35,31 @@ export function serializeCleaner(c: any) {
     preferred: c.preferred ?? undefined,
     available: c.available ?? undefined,
     phone: c.user?.phone ?? undefined,
+    lat: c.lat ?? undefined,
+    lng: c.lng ?? undefined,
+    // "live" = reported a real GPS fix in the last 2 minutes.
+    live: c.locAt ? (Date.now() - new Date(c.locAt).getTime() < 120000) : false,
+    verifStatus: c.verifStatus ?? 'unverified',
+    verified: c.verifStatus === 'verified',
+    verifNote: c.verifNote ?? undefined,
+  };
+}
+
+// Full verification detail incl. documents — ADMIN ONLY (never sent to customers).
+export function serializeVerification(c: any) {
+  return {
+    id: c.id,
+    name: c.name,
+    initials: c.initials,
+    phone: c.user?.phone ?? undefined,
+    verifStatus: c.verifStatus ?? 'unverified',
+    verifNote: c.verifNote ?? undefined,
+    cnic: c.cnic ?? undefined,
+    idFront: c.idFront ?? undefined,
+    idBack: c.idBack ?? undefined,
+    selfie: c.selfie ?? undefined,
+    verifAt: c.verifAt ?? undefined,
+    submittedAt: c.locAt ?? undefined,
   };
 }
 
@@ -53,7 +78,7 @@ export function serializeBooking(b: any) {
     accepted: b.accepted ?? undefined,
     rating: b.rating ?? undefined,
     invoiceNo: b.invoiceNo ?? undefined,
-    payment: b.payment ? { method: b.payment.method, txnId: b.payment.txnId, amount: b.payment.amount, status: b.payment.status } : undefined,
+    payment: b.payment ? { method: b.payment.method, txnId: b.payment.txnId, amount: b.payment.amount, status: b.payment.status, refundAmount: b.payment.refundAmount ?? undefined } : undefined,
     // Live location sharing
     custLat: b.custLat ?? undefined,
     custLng: b.custLng ?? undefined,

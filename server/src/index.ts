@@ -1,16 +1,22 @@
 import 'dotenv/config';
 import path from 'path';
+import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
 import { prisma } from './db';
 import { signToken, requireAuth, type AuthedRequest } from './auth';
 import { verifyIdToken, sendPush } from './firebaseAdmin';
-import { serializeService, serializeBooking, serializeCleaner, serializeMessage, serializeUser } from './serialize';
-import { createCheckoutSession, retrieveOrder, launcherHtml } from './bafl';
+import { serializeService, serializeBooking, serializeCleaner, serializeMessage, serializeUser, serializeVerification } from './serialize';
+import { createCheckoutSession, retrieveOrder, launcherHtml, refundOrder } from './bafl';
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '12mb' })); // base64 ID document images
+
+// Uploaded ID documents / selfies are served statically from /uploads.
+const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+app.use('/uploads', express.static(UPLOAD_DIR));
 
 // Public base URLs. On Render these auto-resolve from RENDER_EXTERNAL_URL, so
 // the Bank Alfalah gateway always gets a public returnUrl (renders correctly).
@@ -122,15 +128,24 @@ app.post('/auth/firebase', wrap(async (req, res) => {
 }));
 
 // ─── Services ────────────────────────────────────────────────────────
+// Real rating/reviews computed from actual rated bookings for the service.
+async function serviceRating(serviceId: string) {
+  const rated = await prisma.booking.findMany({ where: { serviceId, rating: { not: null } }, select: { rating: true } });
+  const reviews = rated.length;
+  const rating = reviews ? Math.round((rated.reduce((a, b) => a + (b.rating ?? 0), 0) / reviews) * 10) / 10 : 0;
+  return { rating, reviews };
+}
+
 app.get('/services', wrap(async (_req, res) => {
   const list = await prisma.service.findMany({ include: { addOns: true } });
-  ok(res, list.map(serializeService));
+  const out = await Promise.all(list.map(async (s) => ({ ...serializeService(s), ...(await serviceRating(s.id)) })));
+  ok(res, out);
 }));
 
 app.get('/services/:id', wrap(async (req, res) => {
   const s = await prisma.service.findUnique({ where: { id: req.params.id }, include: { addOns: true } });
   if (!s) return res.status(404).json({ error: 'Service not found' });
-  ok(res, serializeService(s));
+  ok(res, { ...serializeService(s), ...(await serviceRating(s.id)) });
 }));
 
 // Recent reviews for a service (from completed, rated bookings).
@@ -231,6 +246,7 @@ const initialsOf = (name: string) => name.split(' ').map((x) => x[0]).slice(0, 2
 // demo cleaner, or a pro who finished onboarding). Excludes placeholders.
 const liveCleanerWhere: any = {
   available: true,
+  verifStatus: 'verified',        // only identity-verified cleaners are dispatchable
   name: { not: '' },
   NOT: { name: 'New Cleaner' },
   OR: [{ userId: null }, { user: { name: { not: '' } } }],
@@ -267,6 +283,41 @@ async function getMyCleaner(userId: string) {
 
 app.get('/pro/profile', requireAuth, wrap(async (req, res) => {
   ok(res, serializeCleaner(await getMyCleaner(req.userId!)));
+}));
+
+// A cleaner pushes their live GPS while online — powers the customer's
+// "cleaners nearby" map with real positions.
+app.post('/pro/location', requireAuth, wrap(async (req, res) => {
+  const { lat, lng } = req.body as any;
+  if (typeof lat !== 'number' || typeof lng !== 'number') throw httpError(400, 'lat and lng are required');
+  const me = await getMyCleaner(req.userId!);
+  await prisma.cleaner.update({ where: { id: me.id }, data: { lat, lng, locAt: new Date() } });
+  ok(res, { ok: true });
+}));
+
+// Store a base64 image (ID document / selfie) and return its public URL.
+app.post('/uploads', requireAuth, wrap(async (req, res) => {
+  const { dataUrl } = req.body as any;
+  const m = /^data:image\/(png|jpe?g|webp);base64,(.+)$/.exec(typeof dataUrl === 'string' ? dataUrl : '');
+  if (!m) throw httpError(400, 'Expected a base64 image data URL');
+  const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+  const buf = Buffer.from(m[2], 'base64');
+  if (buf.length > 8 * 1024 * 1024) throw httpError(413, 'Image too large (max 8MB)');
+  const name = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
+  ok(res, { url: `${SELF_URL}/uploads/${name}` });
+}));
+
+// Cleaner submits identity documents for verification → status becomes "pending".
+app.post('/pro/verify', requireAuth, wrap(async (req, res) => {
+  const { cnic, idFront, idBack, selfie } = req.body as any;
+  if (!cnic || !idFront || !selfie) throw httpError(400, 'CNIC number, ID front and a selfie are required');
+  const me = await getMyCleaner(req.userId!);
+  const updated = await prisma.cleaner.update({
+    where: { id: me.id },
+    data: { cnic, idFront, idBack: idBack ?? null, selfie, verifStatus: 'pending', verifNote: null, verifAt: new Date() },
+  });
+  ok(res, serializeCleaner(updated));
 }));
 
 app.patch('/pro/profile', requireAuth, wrap(async (req, res) => {
@@ -309,6 +360,7 @@ app.get('/pro/jobs', requireAuth, wrap(async (req, res) => {
 // First cleaner to accept an open request WINS it (atomic — no double-booking).
 async function claimBooking(bookingId: string, userId: string) {
   const me = await getMyCleaner(userId);
+  if (me.verifStatus !== 'verified') throw httpError(403, 'Your account is not verified yet. Please complete identity verification to accept jobs.');
   const b = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!b) throw httpError(404, 'Job not found');
   if (b.cleanerId && b.cleanerId !== me.id) throw httpError(409, 'This job was just taken by another cleaner.');
@@ -444,16 +496,61 @@ app.post('/notifications/read-all', requireAuth, wrap(async (req, res) => {
   ok(res, { ok: true });
 }));
 
+// Great-circle distance (km) between two lat/lng points.
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const s = Math.sin(dLat / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+// Deterministic bearing (radians) from a cleaner id — so a cleaner without a
+// live GPS fix still gets a stable spot around the customer (no jumping).
+function bearingOf(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return ((h % 360) * Math.PI) / 180;
+}
+function offsetFrom(lat: number, lng: number, km: number, ang: number) {
+  const dLat = (km / 111) * Math.cos(ang);
+  const dLng = (km / (111 * Math.cos((lat * Math.PI) / 180))) * Math.sin(ang);
+  return { lat: lat + dLat, lng: lng + dLng };
+}
+
 // ─── Dispatch ────────────────────────────────────────────────────────
-app.get('/dispatch/nearby', wrap(async (_req, res) => {
+app.get('/dispatch/nearby', wrap(async (req, res) => {
   // "Live" cleaners only: currently available AND with a real, completed
   // profile — either a seeded demo cleaner, or a pro who finished onboarding.
-  // This keeps empty "New Cleaner" placeholders out of live matching.
-  const cleaners = await prisma.cleaner.findMany({
-    where: liveCleanerWhere,
-    orderBy: [{ rating: 'desc' }, { distanceKm: 'asc' }],
+  const cleaners = await prisma.cleaner.findMany({ where: liveCleanerWhere });
+
+  // Customer's live position (from the app). When present we compute REAL
+  // distances and coordinates so the map shows cleaners where they actually are.
+  const uLat = req.query.lat != null ? Number(req.query.lat) : null;
+  const uLng = req.query.lng != null ? Number(req.query.lng) : null;
+  const hasUser = uLat != null && uLng != null && !Number.isNaN(uLat) && !Number.isNaN(uLng);
+
+  const enriched = cleaners.map((c) => {
+    const s: any = serializeCleaner(c);
+    const liveGps = c.lat != null && c.lng != null;
+    if (hasUser) {
+      if (liveGps) {
+        // Real reported GPS — plot exactly, real distance.
+        s.lat = c.lat; s.lng = c.lng;
+        s.distanceKm = Math.round(haversineKm(uLat!, uLng!, c.lat!, c.lng!) * 10) / 10;
+      } else {
+        // No live fix yet — sit them near the customer by their known distance.
+        const p = offsetFrom(uLat!, uLng!, c.distanceKm || 1, bearingOf(c.id));
+        s.lat = p.lat; s.lng = p.lng;
+      }
+    }
+    return s;
   });
-  ok(res, cleaners.map(serializeCleaner));
+
+  // Nearest first.
+  enriched.sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99));
+  ok(res, enriched);
 }));
 
 // All cleaners.
@@ -572,9 +669,36 @@ app.post('/bookings/:id/rate', requireAuth, wrap(async (req, res) => {
   ok(res, { ok: true });
 }));
 
+const CANCELLATION_FEE_PCT = 0.30; // company keeps 30% on a paid cancellation
+const REFUND_WINDOW_DAYS = 30;
+
 app.post('/bookings/:id/cancel', requireAuth, wrap(async (req, res) => {
-  await prisma.booking.update({ where: { id: req.params.id }, data: { status: 'cancelled' } });
-  ok(res, { ok: true });
+  const b = await prisma.booking.findUnique({ where: { id: req.params.id }, include: { payment: true } });
+  if (!b) return res.status(404).json({ error: 'Booking not found' });
+
+  let refund = 0;
+  let refundEligible = false;
+  if (b.payment && b.payment.status === 'paid') {
+    const days = (Date.now() - new Date(b.payment.createdAt).getTime()) / 86400000;
+    if (days <= REFUND_WINDOW_DAYS) {
+      refundEligible = true;
+      refund = Math.round(b.payment.amount * (1 - CANCELLATION_FEE_PCT)); // 70% back
+      // Best-effort real refund through Bank Alfalah for card payments.
+      if (b.payment.method === 'card' && b.payment.orderId && b.payment.txnId) {
+        try { await refundOrder(b.payment.orderId, b.payment.txnId, refund); } catch { /* record even if gateway async */ }
+      }
+      await prisma.payment.update({ where: { bookingId: b.id }, data: { status: 'refunded', refundAmount: refund } });
+    }
+  }
+  await prisma.booking.update({ where: { id: b.id }, data: { status: 'cancelled' } });
+
+  if (refund > 0) {
+    await notify(b.userId, 'rotate-ccw', 'Refund initiated 💸',
+      `PKR ${refund.toLocaleString('en-PK')} will be refunded for your cancelled ${b.serviceName} (30% cancellation fee applied).`, { bookingId: b.id });
+  } else if (b.payment?.status === 'paid') {
+    await notify(b.userId, 'x-circle', 'Booking cancelled', `Your ${b.serviceName} was cancelled. Refund window (30 days) has passed, so no refund applies.`, { bookingId: b.id });
+  }
+  ok(res, { ok: true, refund, refundEligible });
 }));
 
 // Live location sharing: caller pushes their GPS; we store it on the booking as
@@ -617,10 +741,13 @@ app.get('/conversations', requireAuth, wrap(async (req, res) => {
     const other = viewer === 'cleaner'
       ? { name: b.user?.name?.trim() || 'Customer', initials: initialsOf(b.user?.name?.trim() || 'Customer') }
       : { name: b.cleaner?.name || 'Cleaner', initials: b.cleaner?.initials || 'C' };
+    // Online = the cleaner's availability toggle (only meaningful for the customer's view).
+    const online = viewer === 'cleaner' ? false : !!b.cleaner?.available;
     return {
       bookingId: b.id,
       name: other.name,
       initials: other.initials,
+      online,
       cleaner: serializeCleaner(b.cleaner),
       lastMessage: last?.text ?? 'Say hello 👋',
       lastTime: last ? new Date(last.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '',
@@ -642,7 +769,8 @@ app.get('/conversations/:bookingId/meta', requireAuth, wrap(async (req, res) => 
   const other = viewer === 'client'
     ? { name: b.cleaner?.name ?? 'Cleaner', initials: b.cleaner?.initials ?? 'C', phone: b.cleaner?.user?.phone ?? '' }
     : { name: b.user?.name?.trim() || 'Customer', initials: initialsOf(b.user?.name?.trim() || 'Customer'), phone: b.user?.phone ?? '' };
-  ok(res, { name: other.name, initials: other.initials, phone: other.phone, service: b.serviceName, status: b.status });
+  const online = viewer === 'client' ? !!b.cleaner?.available : false;
+  ok(res, { name: other.name, initials: other.initials, phone: other.phone, online, service: b.serviceName, status: b.status });
 }));
 
 app.get('/conversations/:bookingId/messages', requireAuth, wrap(async (req, res) => {
@@ -861,6 +989,38 @@ app.get('/admin/cleaners', requireAdmin, wrap(async (_req, res) => {
     completed: await prisma.booking.count({ where: { cleanerId: c.id, status: 'completed' } }),
   })));
   ok(res, withCounts);
+}));
+
+// Identity verifications — documents included (admin only). Pending first.
+app.get('/admin/verifications', requireAdmin, wrap(async (req, res) => {
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  const where: any = { userId: { not: null } };
+  if (status && status !== 'all') where.verifStatus = status;
+  const list = await prisma.cleaner.findMany({ where, include: { user: true }, orderBy: { verifAt: 'desc' } });
+  const rank: any = { pending: 0, rejected: 1, verified: 2, unverified: 3 };
+  const rows = list.map(serializeVerification).sort((a, b) => (rank[a.verifStatus] ?? 9) - (rank[b.verifStatus] ?? 9));
+  ok(res, rows);
+}));
+
+// Approve or reject a cleaner's identity verification.
+app.post('/admin/cleaners/:id/verify', requireAdmin, wrap(async (req, res) => {
+  const { status, note } = req.body as any;
+  if (!['verified', 'rejected', 'pending', 'unverified'].includes(status)) throw httpError(400, 'Invalid status');
+  const c = await prisma.cleaner.update({
+    where: { id: req.params.id },
+    data: { verifStatus: status, verifNote: status === 'rejected' ? (note || 'Documents could not be verified.') : null, verifAt: new Date() },
+  });
+  if (c.userId) {
+    const verified = status === 'verified';
+    await notify(
+      c.userId,
+      verified ? 'check-circle' : 'alert-circle',
+      verified ? 'You are verified ✅' : 'Verification update',
+      verified ? 'Your identity is verified. You can now accept jobs.' : (c.verifNote || 'Please re-submit your documents.'),
+      {},
+    );
+  }
+  ok(res, serializeVerification(c));
 }));
 
 app.get('/admin/customers', requireAdmin, wrap(async (_req, res) => {

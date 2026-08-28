@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { Text, Button, NavBar } from '../../src/components';
+import { Text, Button, NavBar, PhoneField } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { user as userApi } from '../../src/services/api';
 
@@ -90,14 +90,18 @@ export default function NewPayment() {
           <Text variant="bodySm" weight="semibold" color={colors.textSecondary} style={{ marginBottom: 8 }}>
             {isBank ? 'Account number / IBAN' : isWallet ? 'Mobile number' : 'Card number'}
           </Text>
-          <TextInput
-            style={styles.input}
-            placeholder={isBank ? 'PK00 XXXX 0000 0000 0000' : isWallet ? '03XX XXXXXXX' : '0000 0000 0000 0000'}
-            placeholderTextColor={colors.textDisabled}
-            value={number}
-            onChangeText={setNumber}
-            keyboardType={isBank ? 'default' : 'number-pad'}
-          />
+          {isWallet ? (
+            <PhoneField value={number} onChangeText={setNumber} placeholder="3XX XXXXXXX" />
+          ) : (
+            <TextInput
+              style={styles.input}
+              placeholder={isBank ? 'PK00 XXXX 0000 0000 0000' : '0000 0000 0000 0000'}
+              placeholderTextColor={colors.textDisabled}
+              value={number}
+              onChangeText={setNumber}
+              keyboardType={isBank ? 'default' : 'number-pad'}
+            />
+          )}
           {digits.length >= 4 && (
             <Text variant="bodySm" color={colors.textDisabled} style={{ marginTop: 6 }}>Will be saved as: {buildDetail()}</Text>
           )}

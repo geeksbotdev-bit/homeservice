@@ -1,28 +1,18 @@
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts } from '../../src/theme/theme';
 import { useUnreadCount } from '../../src/store/unread';
 import { useLang } from '../../src/store/lang';
 
 export default function TabsLayout() {
   const unread = useUnreadCount();
-  const insets = useSafeAreaInsets();
   const { t } = useLang();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textDisabled,
-        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 10 },
-        tabBarStyle: {
-          backgroundColor: colors.white,
-          borderTopColor: '#F0F0F0',
-          height: 64 + insets.bottom,
-          paddingTop: 6,
-          paddingBottom: 8 + insets.bottom,
-        },
+        // The persistent app-wide bottom bar (AppTabBar) is rendered globally in
+        // the root layout, so the native per-group bar is hidden to avoid two.
+        tabBarStyle: { display: 'none' },
       }}
     >
       <Tabs.Screen name="index" options={{ title: t('Home'), tabBarIcon: ({ color, size }) => <Feather name="home" size={size} color={color} /> }} />

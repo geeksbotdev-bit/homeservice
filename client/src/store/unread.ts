@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import { chat } from '../services/api';
+import { showToast } from './toast';
+
+// Per-conversation unread snapshot from the last poll (to detect NEW messages).
+let prevUnread: Record<string, number> | null = null;
 
 /**
  * Tiny global store for the Messages tab unread badge.
@@ -13,6 +17,16 @@ export async function refreshUnread() {
   try {
     const convos = await chat.conversations();
     count = convos.filter((c) => c.unread > 0).length; // # of conversations with unread
+    // Toast for messages that arrived since the last poll (unread went up).
+    // Skip the very first run so we don't toast pre-existing unread on launch.
+    if (prevUnread) {
+      for (const c of convos) {
+        if (c.unread > (prevUnread[c.bookingId] ?? 0)) {
+          showToast(c.name || 'New message', c.lastMessage || 'You have a new message', c.bookingId);
+        }
+      }
+    }
+    prevUnread = Object.fromEntries(convos.map((c) => [c.bookingId, c.unread]));
   } catch {
     count = 0;
   }

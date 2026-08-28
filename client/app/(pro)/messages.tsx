@@ -37,7 +37,9 @@ export default function ProMessages() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-          {list.map((c) => (
+          {[...list]
+            .sort((a, b) => (b.unread - a.unread) || (Number(b.lastMessage !== 'Say hello 👋') - Number(a.lastMessage !== 'Say hello 👋')))
+            .map((c) => (
             <Pressable key={c.bookingId} style={styles.row} onPress={() => router.push(`/chat/${c.bookingId}`)}>
               <View style={styles.avatar}>
                 <Text weight="bold" color={colors.primary700} style={{ fontSize: 15 }}>{c.initials}</Text>

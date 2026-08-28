@@ -77,13 +77,22 @@ export default function LocationPicker() {
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude: lat, longitude: lng } = pos.coords;
       let label = '';
       try {
-        const geo = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        const geo = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
         const g = geo[0];
         if (g) label = [g.name || g.street, g.district || g.subregion, g.city].filter(Boolean).join(', ');
-      } catch { /* reverse geocode not available (e.g. web) */ }
-      if (!label) label = `Current location (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`;
+      } catch { /* not available on web */ }
+      if (!label) {
+        // Web / fallback: reverse-geocode via OpenStreetMap for a real area name.
+        try {
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lng}`, { headers: { 'User-Agent': 'HomeServiceApp/1.0' } });
+          const j = await r.json(); const a = j.address || {};
+          label = [a.suburb || a.neighbourhood || a.road, a.city || a.town || a.state].filter(Boolean).join(', ') || (j.display_name || '').split(',').slice(0, 3).join(', ').trim();
+        } catch { /* offline */ }
+      }
+      if (!label) label = 'Current location';
       await userApi.update({ location: label });
       setLocating(false);
       (router.canGoBack() ? router.back() : router.replace('/(tabs)'));

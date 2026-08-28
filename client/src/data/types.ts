@@ -40,6 +40,12 @@ export interface Cleaner {
   preferred?: boolean;
   available?: boolean;
   phone?: string;
+  lat?: number;   // live map position (from the API)
+  lng?: number;
+  live?: boolean; // true if the cleaner reported a real GPS fix recently
+  verifStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+  verified?: boolean;
+  verifNote?: string;
 }
 
 export interface Booking {
@@ -56,7 +62,7 @@ export interface Booking {
   accepted?: boolean;         // cleaner accepted the job request
   rating?: number;            // client's rating after completion
   invoiceNo?: string;
-  payment?: { method: string; txnId: string; amount: number; status: string };
+  payment?: { method: string; txnId: string; amount: number; status: string; refundAmount?: number };
   custLat?: number;
   custLng?: number;
   proLat?: number;
@@ -77,6 +83,7 @@ export interface Conversation {
   bookingId: string;
   name: string;       // the OTHER party (cleaner for customer, customer for cleaner)
   initials: string;
+  online?: boolean;
   cleaner: Cleaner;
   lastMessage: string;
   lastTime: string;

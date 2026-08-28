@@ -16,6 +16,8 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { BookingProvider } from '../src/store/booking';
 import { LanguageProvider } from '../src/store/lang';
+import { Toaster } from '../src/components';
+import { AppTabBar } from '../src/components/AppTabBar';
 import { setUnauthorizedHandler } from '../src/services/client';
 import '../src/services/firebase'; // initializes Firebase at app startup
 
@@ -72,6 +74,7 @@ export default function RootLayout() {
           {/* On web, constrain to a phone-width column so the mobile design
               renders correctly instead of stretching across the browser. */}
           <View style={styles.frame}>
+            <View style={{ flex: 1 }}>
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#fff' } }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" />
@@ -95,6 +98,9 @@ export default function RootLayout() {
               <Stack.Screen name="pay-webview" options={{ gestureEnabled: false }} />
               <Stack.Screen name="all-services" />
             </Stack>
+            </View>
+            <AppTabBar />
+            <Toaster />
           </View>
         </BookingProvider>
         </LanguageProvider>
