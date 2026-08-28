@@ -21,13 +21,24 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
   const header = req.headers.authorization;
   const token = header?.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Missing token' });
+
+  // 1) Verify the JWT. A bad/expired token is a real 401 (log the user out).
+  let payload: { uid: string };
   try {
-    const payload = jwt.verify(token, SECRET) as { uid: string };
+    payload = jwt.verify(token, SECRET) as { uid: string };
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  // 2) Confirm the user still exists. A DB error here (e.g. a serverless cold
+  //    start) must NOT log the user out — return 503 so the app retries instead
+  //    of bouncing to Welcome.
+  try {
     const user = await prisma.user.findUnique({ where: { id: payload.uid }, select: { id: true } });
     if (!user) return res.status(401).json({ error: 'Session expired — please sign in again' });
     req.userId = payload.uid;
     next();
   } catch {
-    return res.status(401).json({ error: 'Invalid token' });
+    return res.status(503).json({ error: 'Service temporarily unavailable. Please try again.' });
   }
 }

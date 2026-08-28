@@ -54,10 +54,7 @@ export default function Home() {
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const greeting = useMemo(() => {
-    const h = new Date().getHours();
-    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  }, []);
+  const greeting = 'Hello';
 
   const loadServices = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);

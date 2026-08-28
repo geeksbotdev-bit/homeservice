@@ -1,49 +1,68 @@
 /**
- * HTTP client + mock switch.
+ * HTTP client + mock switch + persisted session.
  *
- * Today the app runs on in-memory mock data (USE_MOCKS = true).
- * When the Node/PostgreSQL backend is ready:
- *   1. Set EXPO_PUBLIC_USE_MOCKS=false in .env
- *   2. Set EXPO_PUBLIC_API_URL to your server, e.g. https://api.homeservice.pk
- *   3. Every function in api.ts already calls request() — no screen changes needed.
+ * Session (token + role) is persisted cross-platform so a relaunch keeps the
+ * user signed in: web → localStorage, native → AsyncStorage. Nothing is stored
+ * synchronously on native, so `restoreSession()` must run (and be awaited) at
+ * app start before routing decides Welcome vs. the app.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000';
 export const USE_MOCKS = (process.env.EXPO_PUBLIC_USE_MOCKS ?? 'true') !== 'false';
 
 const TOKEN_KEY = 'hs_auth_token';
 const ROLE_KEY = 'hs_role';
+const isWeb = Platform.OS === 'web';
 
-// Restore a persisted session on load (web: localStorage) so a refresh or
-// relaunch keeps the user signed in instead of forcing a re-login.
 let authToken: string | null = null;
 let userRole: string | null = null;
-try {
-  if (typeof localStorage !== 'undefined') {
-    authToken = localStorage.getItem(TOKEN_KEY);
-    userRole = localStorage.getItem(ROLE_KEY);
-  }
-} catch {}
+let restored = false;
+
+// Cross-platform persistence helpers (web localStorage is synchronous; native
+// AsyncStorage is async — writes are fire-and-forget, reads happen in restore).
+function persist(key: string, value: string | null) {
+  try {
+    if (isWeb) {
+      if (typeof localStorage !== 'undefined') {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      }
+    } else {
+      if (value === null) AsyncStorage.removeItem(key).catch(() => {});
+      else AsyncStorage.setItem(key, value).catch(() => {});
+    }
+  } catch { /* ignore */ }
+}
+
+/** Load the persisted session into memory. Await this once at app start. */
+export async function restoreSession(): Promise<void> {
+  if (restored) return;
+  try {
+    if (isWeb) {
+      if (typeof localStorage !== 'undefined') {
+        authToken = localStorage.getItem(TOKEN_KEY);
+        userRole = localStorage.getItem(ROLE_KEY);
+      }
+    } else {
+      const [[, t], [, r]] = await AsyncStorage.multiGet([TOKEN_KEY, ROLE_KEY]);
+      authToken = t ?? null;
+      userRole = r ?? null;
+    }
+  } catch { /* ignore */ }
+  restored = true;
+}
 
 export function setAuthToken(token: string | null) {
   authToken = token;
-  try {
-    if (typeof localStorage !== 'undefined') {
-      if (token) localStorage.setItem(TOKEN_KEY, token);
-      else { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(ROLE_KEY); }
-    }
-  } catch {}
-  if (!token) userRole = null;
+  persist(TOKEN_KEY, token);
+  if (!token) { userRole = null; persist(ROLE_KEY, null); }
 }
 
 export function setUserRole(role: string | null) {
   userRole = role;
-  try {
-    if (typeof localStorage !== 'undefined') {
-      if (role) localStorage.setItem(ROLE_KEY, role);
-      else localStorage.removeItem(ROLE_KEY);
-    }
-  } catch {}
+  persist(ROLE_KEY, role);
 }
 
 export function getAuthToken() { return authToken; }
@@ -66,21 +85,37 @@ export function delay<T>(value: T, ms = 600): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
+export class NetworkError extends Error {
+  constructor() { super('No internet connection. Please check your network and try again.'); this.name = 'NetworkError'; }
+}
+
 export async function request<T>(
   path: string,
   options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method: options.method ?? 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method: options.method ?? 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch {
+    // fetch throws (TypeError) when the device is offline / can't reach the server.
+    throw new NetworkError();
+  }
   if (!res.ok) {
-    // Stale/expired token → clear it and let the app return to login.
-    if (res.status === 401) { setAuthToken(null); onUnauthorized?.(); }
+    // Only a REAL session-expiry (we had a token) bounces to login. A 401 on a
+    // pre-login call (no token — e.g. a background poller before sign-in) must
+    // NOT redirect, or the user gets kicked back to Welcome from the login flow.
+    if (res.status === 401) {
+      const hadToken = !!authToken;
+      setAuthToken(null);
+      if (hadToken) onUnauthorized?.();
+    }
     const msg = await res.text().catch(() => res.statusText);
     throw new Error(`API ${res.status}: ${msg}`);
   }

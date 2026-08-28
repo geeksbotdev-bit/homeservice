@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, View, StyleSheet } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,7 +18,7 @@ import { BookingProvider } from '../src/store/booking';
 import { LanguageProvider } from '../src/store/lang';
 import { Toaster } from '../src/components';
 import { AppTabBar } from '../src/components/AppTabBar';
-import { setUnauthorizedHandler } from '../src/services/client';
+import { setUnauthorizedHandler, restoreSession } from '../src/services/client';
 import '../src/services/firebase'; // initializes Firebase at app startup
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -33,9 +33,15 @@ export default function RootLayout() {
     PlusJakartaSans_800ExtraBold,
   });
 
+  // Restore the persisted session (token + role) BEFORE routing, so a signed-in
+  // user isn't briefly bounced to Welcome on native (where restore is async).
+  const [sessionReady, setSessionReady] = useState(false);
+  useEffect(() => { restoreSession().finally(() => setSessionReady(true)); }, []);
+
+  const ready = loaded && sessionReady;
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync().catch(() => {});
-  }, [loaded]);
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
 
   // A 401 (expired/stale session) sends the user back to sign-in.
   useEffect(() => {
@@ -78,7 +84,7 @@ export default function RootLayout() {
     }
   }, []);
 
-  if (!loaded) return null;
+  if (!ready) return null;
 
   return (
     <GestureHandlerRootView style={styles.outer}>
