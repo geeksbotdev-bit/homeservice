@@ -159,14 +159,14 @@ export default function BookingDetail() {
     setB({ ...b, status: 'cancelled' });
     const refund = res?.refund ?? 0;
     if (refund > 0) {
-      showToast('Refund initiated', `PKR ${refund.toLocaleString('en-PK')} will be refunded (30% cancellation fee applied).`);
+      showToast('Refund initiated', `PKR ${refund.toLocaleString('en-PK')} will be refunded to your payment method within 1 week (30% cancellation fee applied).`);
     }
   }
 
   const paidForCancel = b?.payment?.status === 'paid';
   const cancelRefund = paidForCancel ? Math.round((b?.total ?? 0) * 0.7) : 0;
   const cancelMsg = paidForCancel
-    ? `You'll be refunded PKR ${cancelRefund.toLocaleString('en-PK')} (30% cancellation fee applies).`
+    ? `You'll be refunded PKR ${cancelRefund.toLocaleString('en-PK')} to your payment method within 1 week (30% cancellation fee applies).`
     : 'This will cancel your booking. This action cannot be undone.';
 
   async function receipt() {
@@ -310,7 +310,7 @@ export default function BookingDetail() {
           <View style={styles.refundCard}>
             <Feather name="rotate-ccw" size={16} color={colors.success} />
             <Text variant="bodySm" color={colors.textSecondary} style={{ flex: 1 }}>
-              Refunded <Text weight="bold">{formatPKR(b.payment.refundAmount ?? Math.round(b.total * 0.7))}</Text> to your payment method (30% cancellation fee applied).
+              Refund of <Text weight="bold">{formatPKR(b.payment.refundAmount ?? Math.round(b.total * 0.7))}</Text> is being processed to your payment method — arrives within 1 week (30% cancellation fee applied).
             </Text>
           </View>
         )}

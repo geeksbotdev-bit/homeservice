@@ -694,7 +694,7 @@ app.post('/bookings/:id/cancel', requireAuth, wrap(async (req, res) => {
 
   if (refund > 0) {
     await notify(b.userId, 'rotate-ccw', 'Refund initiated',
-      `PKR ${refund.toLocaleString('en-PK')} will be refunded for your cancelled ${b.serviceName} (30% cancellation fee applied).`, { bookingId: b.id });
+      `PKR ${refund.toLocaleString('en-PK')} will be refunded to your payment method within 1 week for your cancelled ${b.serviceName} (30% cancellation fee applied).`, { bookingId: b.id });
   } else if (b.payment?.status === 'paid') {
     await notify(b.userId, 'x-circle', 'Booking cancelled', `Your ${b.serviceName} was cancelled. Refund window (30 days) has passed, so no refund applies.`, { bookingId: b.id });
   }
