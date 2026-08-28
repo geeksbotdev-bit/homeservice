@@ -64,7 +64,7 @@ export default function ProJobs() {
   return (
     <View style={styles.root}>
       <SafeAreaView edges={['top']} style={styles.header}>
-        <Text color="rgba(255,255,255,0.7)" style={{ fontSize: 13 }}>Good morning 👋</Text>
+        <Text color="rgba(255,255,255,0.7)" style={{ fontSize: 13 }}>Good morning</Text>
         <Text variant="h1" color={colors.white} style={{ fontSize: 22 }}>Your Jobs</Text>
       </SafeAreaView>
 

@@ -12,3 +12,6 @@ export { OsmMap } from './OsmMap';
 export { LiveMap } from './LiveMap';
 export { PhoneField, toLocalPk, toFullPk } from './PhoneField';
 export { Toaster } from './Toaster';
+export { ConfirmDialog } from './ConfirmDialog';
+export { NearbyMap } from './NearbyMap';
+export { AppTabBar } from './AppTabBar';

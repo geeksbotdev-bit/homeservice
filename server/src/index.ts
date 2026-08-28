@@ -258,7 +258,7 @@ const realProWhere: any = { ...liveCleanerWhere, userId: { not: null } };
 // Broadcast a new open request to every real cleaner (first to accept wins).
 async function broadcastRequest(bookingId: string, serviceName: string, scheduled: boolean) {
   const cleaners = await prisma.cleaner.findMany({ where: realProWhere, select: { userId: true } });
-  const title = scheduled ? 'New scheduled job 📅' : 'New job request 🔔';
+  const title = scheduled ? 'New scheduled job' : 'New job request';
   const body = scheduled ? `A customer scheduled ${serviceName}. Open to accept.` : `A customer needs ${serviceName} now. Open to accept.`;
   for (const c of cleaners) if (c.userId) await notify(c.userId, 'bell', title, body, { bookingId });
 }
@@ -371,7 +371,7 @@ async function claimBooking(bookingId: string, userId: string) {
   });
   if (upd.count === 0) throw httpError(409, 'This job was just taken by another cleaner.');
   const when = b.scheduledType === 'later' ? ` on ${b.dateLabel}, ${b.timeLabel}` : ' and will be there soon';
-  await notify(b.userId, 'user-check', 'Cleaner confirmed ✅', `${me.name} accepted your ${b.serviceName}${when}.`, { bookingId });
+  await notify(b.userId, 'user-check', 'Cleaner confirmed', `${me.name} accepted your ${b.serviceName}${when}.`, { bookingId });
 }
 
 app.post('/pro/bookings/:id/claim', requireAuth, wrap(async (req, res) => {
@@ -406,10 +406,10 @@ app.post('/pro/bookings/:id/status', requireAuth, wrap(async (req, res) => {
   }
   // Record an in-app notification + push for the client.
   const N: Record<string, { icon: string; title: string; body: string }> = {
-    on_the_way:  { icon: 'navigation',  title: 'Cleaner on the way 🚗', body: `Your cleaner is heading to you for ${b.serviceName}.` },
-    arrived:     { icon: 'map-pin',     title: 'Cleaner arrived 🏠',    body: `Your cleaner has arrived for ${b.serviceName}.` },
-    in_progress: { icon: 'loader',      title: 'Cleaning started ✨',   body: `Your ${b.serviceName} is now in progress.` },
-    completed:   { icon: 'check-circle',title: 'Service completed ✅',  body: `Your ${b.serviceName} is done. Please rate your cleaner!` },
+    on_the_way:  { icon: 'navigation',  title: 'Cleaner on the way', body: `Your cleaner is heading to you for ${b.serviceName}.` },
+    arrived:     { icon: 'map-pin',     title: 'Cleaner arrived',    body: `Your cleaner has arrived for ${b.serviceName}.` },
+    in_progress: { icon: 'loader',      title: 'Cleaning started',   body: `Your ${b.serviceName} is now in progress.` },
+    completed:   { icon: 'check-circle',title: 'Service completed',  body: `Your ${b.serviceName} is done. Please rate your cleaner!` },
   };
   const n = N[status];
   if (n) await notify(b.userId, n.icon, n.title, n.body, { bookingId: b.id, status });
@@ -467,7 +467,7 @@ app.post('/pro/withdraw', requireAuth, wrap(async (req, res) => {
   const payout = await prisma.paymentMethod.findFirst({ where: { userId: req.userId! } });
   if (!payout) throw httpError(400, 'Add a payout method first.');
   await prisma.cleaner.update({ where: { id: me.id }, data: { withdrawn: me.withdrawn + available } });
-  await notify(req.userId!, 'dollar-sign', 'Withdrawal requested 💸', `PKR ${available.toLocaleString('en-PK')} is being transferred to ${payout.name} · ${payout.detail}.`, {});
+  await notify(req.userId!, 'dollar-sign', 'Withdrawal requested', `PKR ${available.toLocaleString('en-PK')} is being transferred to ${payout.name} · ${payout.detail}.`, {});
   ok(res, { ok: true, amount: available, to: `${payout.name} · ${payout.detail}` });
 }));
 
@@ -693,7 +693,7 @@ app.post('/bookings/:id/cancel', requireAuth, wrap(async (req, res) => {
   await prisma.booking.update({ where: { id: b.id }, data: { status: 'cancelled' } });
 
   if (refund > 0) {
-    await notify(b.userId, 'rotate-ccw', 'Refund initiated 💸',
+    await notify(b.userId, 'rotate-ccw', 'Refund initiated',
       `PKR ${refund.toLocaleString('en-PK')} will be refunded for your cancelled ${b.serviceName} (30% cancellation fee applied).`, { bookingId: b.id });
   } else if (b.payment?.status === 'paid') {
     await notify(b.userId, 'x-circle', 'Booking cancelled', `Your ${b.serviceName} was cancelled. Refund window (30 days) has passed, so no refund applies.`, { bookingId: b.id });
@@ -749,7 +749,7 @@ app.get('/conversations', requireAuth, wrap(async (req, res) => {
       initials: other.initials,
       online,
       cleaner: serializeCleaner(b.cleaner),
-      lastMessage: last?.text ?? 'Say hello 👋',
+      lastMessage: last?.text ?? 'Say hello',
       lastTime: last ? new Date(last.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '',
       unread,
       serviceName: b.serviceName,
@@ -1015,7 +1015,7 @@ app.post('/admin/cleaners/:id/verify', requireAdmin, wrap(async (req, res) => {
     await notify(
       c.userId,
       verified ? 'check-circle' : 'alert-circle',
-      verified ? 'You are verified ✅' : 'Verification update',
+      verified ? 'You are verified' : 'Verification update',
       verified ? 'Your identity is verified. You can now accept jobs.' : (c.verifNote || 'Please re-submit your documents.'),
       {},
     );
@@ -1101,7 +1101,7 @@ app.post('/admin/bookings/:id/assign', requireAdmin, wrap(async (req, res) => {
   const c = await prisma.cleaner.findUnique({ where: { id: cleanerId } });
   if (!c) throw httpError(404, 'Cleaner not found');
   const b = await prisma.booking.update({ where: { id: req.params.id }, data: { cleanerId, accepted: true } });
-  await notify(b.userId, 'user-check', 'Cleaner assigned ✅', `${c.name} has been assigned to your ${b.serviceName}.`, { bookingId: b.id });
+  await notify(b.userId, 'user-check', 'Cleaner assigned', `${c.name} has been assigned to your ${b.serviceName}.`, { bookingId: b.id });
   if (c.userId) await notify(c.userId, 'briefcase', 'New job assigned', `Admin assigned you a ${b.serviceName} job.`, { bookingId: b.id });
   ok(res, { ok: true, cleaner: c.name });
 }));

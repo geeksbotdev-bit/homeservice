@@ -288,6 +288,7 @@ export default function Home() {
       {/* Notifications dropdown */}
       <Modal visible={showNotif} transparent animationType="fade" onRequestClose={() => setShowNotif(false)}>
         <Pressable style={styles.notifBackdrop} onPress={() => setShowNotif(false)}>
+          <View style={styles.notifColumn} pointerEvents="box-none">
           <Pressable style={[styles.notifPanel, { marginTop: insets.top + 52 }]} onPress={() => {}}>
             <View style={styles.notifHead}>
               <Text weight="extrabold" style={{ fontSize: 15 }}>Notifications</Text>
@@ -317,6 +318,7 @@ export default function Home() {
               </ScrollView>
             )}
           </Pressable>
+          </View>
         </Pressable>
       </Modal>
     </View>
@@ -352,7 +354,9 @@ const styles = StyleSheet.create({
   tag: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 6 },
   plus: { width: 38, height: 38, backgroundColor: colors.primary, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', ...shadow.button },
   retryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 20 },
-  notifBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', alignItems: 'flex-end', paddingHorizontal: 14 },
+  notifBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', alignItems: 'center' },
+  // Keep the panel inside the phone frame on web (Modal renders at window root).
+  notifColumn: { width: 390, maxWidth: '100%', flex: 1, alignItems: 'flex-end', paddingHorizontal: 14 },
   notifPanel: { width: 320, maxWidth: '92%', backgroundColor: colors.white, borderRadius: radius.xl, overflow: 'hidden', ...shadow.card },
   notifHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.surface },
   notifRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14 },

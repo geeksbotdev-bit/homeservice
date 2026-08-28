@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome } from '@expo/vector-icons';
-import { Text, Button, Card, StatusBadge, NavBar, LiveMap } from '../../src/components';
+import { Text, Button, Card, StatusBadge, NavBar, LiveMap, ConfirmDialog } from '../../src/components';
 import { useShareLocation } from '../../src/hooks/useShareLocation';
 import { colors, radius, shadow } from '../../src/theme/theme';
 import { bookings as bookingsApi, user as userApi, cleaners as cleanersApi } from '../../src/services/api';
+import { showToast } from '../../src/store/toast';
 import { downloadReceipt, methodLabel } from '../../src/receipt';
 import type { InvoiceData } from '../../src/invoice';
 import { formatPKR } from '../../src/utils';
@@ -30,6 +31,8 @@ export default function BookingDetail() {
   const [etaSec, setEtaSec] = useState(ETA_TOTAL);
   const [searchSec, setSearchSec] = useState(0);
   const [fav, setFav] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Share the customer's location (destination) while a cleaner is engaged.
@@ -149,27 +152,22 @@ export default function BookingDetail() {
 
   async function doCancel() {
     if (!b) return;
+    setCancelling(true);
     const res: any = await bookingsApi.cancel(b.id).catch(() => ({}));
+    setCancelling(false);
+    setConfirmCancel(false);
     setB({ ...b, status: 'cancelled' });
     const refund = res?.refund ?? 0;
     if (refund > 0) {
-      const msg = `PKR ${refund.toLocaleString('en-PK')} will be refunded (30% cancellation fee applied).`;
-      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Refund initiated', msg);
+      showToast('Refund initiated', `PKR ${refund.toLocaleString('en-PK')} will be refunded (30% cancellation fee applied).`);
     }
   }
-  function cancel() {
-    if (!b) return;
-    const paid = b.payment?.status === 'paid';
-    const refund = paid ? Math.round(b.total * 0.7) : 0;
-    const q = paid
-      ? `Cancel this booking? You'll be refunded PKR ${refund.toLocaleString('en-PK')} (30% cancellation fee applies).`
-      : 'Cancel this booking?';
-    if (Platform.OS === 'web') { if (window.confirm(q)) doCancel(); return; }
-    Alert.alert('Cancel booking', q, [
-      { text: 'Keep', style: 'cancel' },
-      { text: 'Cancel booking', style: 'destructive', onPress: doCancel },
-    ]);
-  }
+
+  const paidForCancel = b?.payment?.status === 'paid';
+  const cancelRefund = paidForCancel ? Math.round((b?.total ?? 0) * 0.7) : 0;
+  const cancelMsg = paidForCancel
+    ? `You'll be refunded PKR ${cancelRefund.toLocaleString('en-PK')} (30% cancellation fee applies).`
+    : 'This will cancel your booking. This action cannot be undone.';
 
   async function receipt() {
     if (!b) return;
@@ -324,7 +322,7 @@ export default function BookingDetail() {
         {b.status === 'completed' && !b.rating && (
           <Card style={{ padding: 18, alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: colors.accent }}>
             <Feather name="check-circle" size={26} color={colors.success} />
-            <Text weight="extrabold" style={{ fontSize: 16 }} center>Service completed 🎉</Text>
+            <Text weight="extrabold" style={{ fontSize: 16 }} center>Service completed</Text>
             <Text variant="bodySm" color={colors.textTertiary} center>How was your experience with {b.cleaner?.name ?? 'your cleaner'}? Your review helps other customers.</Text>
             <View style={{ flexDirection: 'row', gap: 6, marginVertical: 4 }}>
               {[1, 2, 3, 4, 5].map((n) => (
@@ -348,9 +346,22 @@ export default function BookingDetail() {
           </Card>
         )}
         {['confirmed', 'on_the_way'].includes(b.status) && (
-          <Button label="Cancel Booking" variant="danger" icon="x-circle" onPress={cancel} />
+          <Button label="Cancel Booking" variant="danger" icon="x-circle" onPress={() => setConfirmCancel(true)} />
         )}
       </ScrollView>
+
+      <ConfirmDialog
+        visible={confirmCancel}
+        danger
+        icon="x-circle"
+        title="Cancel this booking?"
+        message={cancelMsg}
+        confirmLabel="Cancel booking"
+        cancelLabel="Keep"
+        loading={cancelling}
+        onConfirm={doCancel}
+        onCancel={() => setConfirmCancel(false)}
+      />
     </View>
   );
 }

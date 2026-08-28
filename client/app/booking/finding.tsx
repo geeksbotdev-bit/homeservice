@@ -185,7 +185,7 @@ export default function Finding() {
           <>
             <View style={{ alignItems: 'center', marginBottom: 8 }}>
               <View style={styles.matchAvatar}><Text weight="extrabold" color={colors.white} style={{ fontSize: 22 }}>{matchedCleaner.initials}</Text></View>
-              <Text variant="h2" style={{ fontSize: 19, marginTop: 12 }}>Cleaner matched! 🎉</Text>
+              <Text variant="h2" style={{ fontSize: 19, marginTop: 12 }}>Cleaner matched!</Text>
               <Text weight="bold" style={{ fontSize: 16, marginTop: 8 }}>{matchedCleaner.name}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
                 <Feather name="star" size={12} color={colors.accent} />
