@@ -91,11 +91,13 @@ export default function BookingDetail() {
   // Instant booking still waiting for a cleaner to accept → show searching.
   const searching = !b.accepted && b.status === 'confirmed' && b.scheduledType !== 'later';
 
-  async function cancelSearch() {
-    if (!b) return;
-    await bookingsApi.cancel(b.id).catch(() => {});
-    router.replace('/(tabs)/bookings');
-  }
+  // Cancellation (paid → 70% refund, 30% fee). Shared by the searching &
+  // active-tracking states — both confirm via the same popup.
+  const paidForCancel = b?.payment?.status === 'paid';
+  const cancelRefund = paidForCancel ? Math.round((b?.total ?? 0) * 0.7) : 0;
+  const cancelMsg = paidForCancel
+    ? `You'll be refunded PKR ${cancelRefund.toLocaleString('en-PK')} to your payment method within 1 week (30% cancellation fee applies).`
+    : 'This will cancel your booking. This action cannot be undone.';
 
   if (searching) {
     const mins = Math.floor(searchSec / 60);
@@ -135,8 +137,21 @@ export default function BookingDetail() {
         </View>
 
         <SafeAreaView edges={['bottom']} style={{ padding: 20, paddingTop: 0 }}>
-          <Button label="Cancel Search" variant="danger" icon="x-circle" onPress={cancelSearch} />
+          <Button label="Cancel Booking" variant="danger" icon="x-circle" onPress={() => setConfirmCancel(true)} />
         </SafeAreaView>
+
+        <ConfirmDialog
+          visible={confirmCancel}
+          danger
+          icon="x-circle"
+          title="Cancel this booking?"
+          message={cancelMsg}
+          confirmLabel="Cancel booking"
+          cancelLabel="Keep searching"
+          loading={cancelling}
+          onConfirm={doCancel}
+          onCancel={() => setConfirmCancel(false)}
+        />
       </View>
     );
   }
@@ -162,12 +177,6 @@ export default function BookingDetail() {
       showToast('Refund initiated', `PKR ${refund.toLocaleString('en-PK')} will be refunded to your payment method within 1 week (30% cancellation fee applied).`);
     }
   }
-
-  const paidForCancel = b?.payment?.status === 'paid';
-  const cancelRefund = paidForCancel ? Math.round((b?.total ?? 0) * 0.7) : 0;
-  const cancelMsg = paidForCancel
-    ? `You'll be refunded PKR ${cancelRefund.toLocaleString('en-PK')} to your payment method within 1 week (30% cancellation fee applies).`
-    : 'This will cancel your booking. This action cannot be undone.';
 
   async function receipt() {
     if (!b) return;

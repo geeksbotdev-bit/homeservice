@@ -536,26 +536,22 @@ app.get('/dispatch/nearby', wrap(async (req, res) => {
   const uLng = req.query.lng != null ? Number(req.query.lng) : null;
   const hasUser = uLat != null && uLng != null && !Number.isNaN(uLat) && !Number.isNaN(uLng);
 
-  // Give demo cleaners (no coordinates yet) a STABLE real location near the
-  // first customer who searches — persisted once, so distances are then computed
-  // by real geography and change as the customer moves (not fixed seed values).
-  if (hasUser) {
-    await Promise.all(cleaners.map(async (c) => {
-      if (c.lat == null || c.lng == null) {
-        const km = 0.4 + (hashId(c.id) % 45) / 10; // 0.4–4.9 km spread
-        const p = offsetFrom(uLat!, uLng!, km, bearingOf(c.id));
-        c.lat = p.lat; c.lng = p.lng;
-        await prisma.cleaner.update({ where: { id: c.id }, data: { lat: p.lat, lng: p.lng } }).catch(() => {});
-      }
-    }));
-  }
-
   const enriched = cleaners.map((c) => {
     const s: any = serializeCleaner(c);
-    if (hasUser && c.lat != null && c.lng != null) {
-      // Real distance from the customer's live location to the cleaner.
+    if (!hasUser) return s;
+    // A cleaner with a RECENT GPS fix (an actually-online pro) is plotted at
+    // their real position with the real distance.
+    const liveGps = c.lat != null && c.lng != null && c.locAt && (Date.now() - new Date(c.locAt).getTime() < 120000);
+    if (liveGps) {
       s.lat = c.lat; s.lng = c.lng;
       s.distanceKm = Math.round(haversineKm(uLat!, uLng!, c.lat!, c.lng!) * 10) / 10;
+    } else {
+      // Idle / demo cleaner — always shown NEAR the customer (0.3–3.5 km),
+      // relative to wherever they are right now, so the map is dynamic.
+      const km = Math.round((0.3 + (hashId(c.id) % 33) / 10) * 10) / 10; // 0.3–3.5 km
+      const p = offsetFrom(uLat!, uLng!, km, bearingOf(c.id));
+      s.lat = p.lat; s.lng = p.lng;
+      s.distanceKm = km;
     }
     return s;
   });

@@ -41,3 +41,10 @@ server/uploads/
 .DS_Store
 Thumbs.db
 .idea/
+
+# Agent skills (local tooling)
+.agents/
+
+# Neon/agent skills tooling
+.claude/skills/
+skills-lock.json

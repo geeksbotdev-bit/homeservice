@@ -81,6 +81,14 @@ export default function Home() {
     [list, query, cat],
   );
 
+  // Type-ahead suggestions for the search box (matching services).
+  const suggestions = useMemo(
+    () => (query.trim()
+      ? list.filter((s) => `${s.name} ${s.tagline} ${s.category}`.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+      : []),
+    [list, query],
+  );
+
   function cycleFilter() {
     const opts: (string | null)[] = [null, ...cats];
     setCat(opts[(opts.indexOf(cat) + 1) % opts.length]);
@@ -159,6 +167,26 @@ export default function Home() {
             <Feather name="sliders" size={14} color={cat ? colors.white : colors.primary} />
           </Pressable>
         </View>
+
+        {/* Type-ahead services dropdown */}
+        {suggestions.length > 0 && (
+          <View style={styles.suggestBox}>
+            {suggestions.map((s, i) => (
+              <Pressable
+                key={s.id}
+                onPress={() => { setQuery(''); router.push(`/service/${s.id}`); }}
+                style={[styles.suggestRow, i < suggestions.length - 1 && styles.suggestDivider]}
+              >
+                <View style={styles.suggestIcon}><Feather name="search" size={14} color={colors.primary} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text weight="semibold" style={{ fontSize: 14 }} numberOfLines={1}>{s.name}</Text>
+                  <Text variant="bodySm" color={colors.textTertiary} numberOfLines={1} style={{ fontSize: 12 }}>{s.tagline}</Text>
+                </View>
+                <Text weight="bold" color={colors.primary} style={{ fontSize: 13 }}>{formatPKR(s.basePrice)}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         {/* Departments — Cleaning live, others coming soon (minimal) */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18 }} contentContainerStyle={{ gap: 14, paddingTop: 12, paddingBottom: 4, paddingHorizontal: 2 }}>
@@ -334,6 +362,10 @@ const styles = StyleSheet.create({
   location: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: radius.lg, padding: 12 },
   search: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.white, borderRadius: radius.lg, height: 50, paddingHorizontal: 16, marginBottom: 14, ...shadow.soft },
   searchInput: { flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: colors.textPrimary },
+  suggestBox: { backgroundColor: colors.white, borderRadius: radius.lg, marginTop: -6, marginBottom: 14, overflow: 'hidden', ...shadow.card },
+  suggestRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  suggestDivider: { borderBottomWidth: 1, borderBottomColor: colors.surface },
+  suggestIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary50, alignItems: 'center', justifyContent: 'center' },
   filterBtn: { width: 32, height: 32, backgroundColor: colors.primary50, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   filterBtnOn: { backgroundColor: colors.primary },
   activeFilter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primary50, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 14, marginTop: -2 },

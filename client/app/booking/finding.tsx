@@ -4,10 +4,11 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { Text, Button, Logo } from '../../src/components';
+import { Text, Button, Logo, ConfirmDialog } from '../../src/components';
 import { colors, shadow } from '../../src/theme/theme';
 import { dispatch, bookings as bookingsApi } from '../../src/services/api';
 import { useBooking } from '../../src/store/booking';
+import { showToast } from '../../src/store/toast';
 import { NearbyMap, type NearbyPin } from '../../src/components/NearbyMap';
 import type { Cleaner, Booking } from '../../src/data/types';
 
@@ -43,6 +44,8 @@ export default function Finding() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [statusIdx, setStatusIdx] = useState(0);
   const [progress, setProgress] = useState(12);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const spin = useRef(new Animated.Value(0)).current;
   const barW = useRef(new Animated.Value(12)).current;
@@ -156,6 +159,19 @@ export default function Finding() {
     router.replace(`/booking/${id ?? 'HS-2025-00125'}`);
   }
 
+  // Cancelling during the search: it's already paid → 70% refund (30% fee).
+  const refundAmt = Math.round((booking?.total ?? 0) * 0.7);
+  const cancelMsg = `You'll be refunded PKR ${refundAmt.toLocaleString('en-PK')} to your payment method within 1 week (30% cancellation fee applies).`;
+  async function doCancel() {
+    setCancelling(true);
+    const res: any = id ? await bookingsApi.cancel(id).catch(() => ({})) : {};
+    setCancelling(false);
+    setConfirmCancel(false);
+    reset();
+    if ((res?.refund ?? 0) > 0) showToast('Refund initiated', `PKR ${res.refund.toLocaleString('en-PK')} will be refunded within 1 week (30% fee).`);
+    router.replace('/(tabs)/bookings');
+  }
+
   return (
     <View style={styles.root}>
       {/* ── Map area (real, live) ── */}
@@ -246,12 +262,25 @@ export default function Finding() {
               })}
             </View>
 
-            <Pressable onPress={() => { reset(); router.replace('/(tabs)'); }} style={{ alignSelf: 'center', paddingVertical: 4 }}>
+            <Pressable onPress={() => setConfirmCancel(true)} style={{ alignSelf: 'center', paddingVertical: 4 }}>
               <Text weight="semibold" color={colors.error}>Cancel booking</Text>
             </Pressable>
           </>
         )}
       </View>
+
+      <ConfirmDialog
+        visible={confirmCancel}
+        danger
+        icon="x-circle"
+        title="Cancel this booking?"
+        message={cancelMsg}
+        confirmLabel="Cancel booking"
+        cancelLabel="Keep searching"
+        loading={cancelling}
+        onConfirm={doCancel}
+        onCancel={() => setConfirmCancel(false)}
+      />
     </View>
   );
 }
