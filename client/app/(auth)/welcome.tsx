@@ -97,11 +97,12 @@ export default function Welcome() {
         {active < SLIDES.length - 1 ? (
           <Button label="Next" iconRight="arrow-right" onPress={() => goTo(active + 1)} />
         ) : (
-          <Button label="Get Started" iconRight="arrow-right" onPress={() => router.push('/(auth)/role')} />
+          // No account-type chooser: everyone signs in with their phone number.
+          // New accounts are customers; a returning user's role comes from the
+          // server, so the app never has to ask "customer or cleaner".
+          <Button label="Get Started" iconRight="arrow-right" onPress={() => router.push('/(auth)/phone')} />
         )}
 
-        {/* Log In skips the account-type chooser — a returning user's role is
-            already stored on their account and comes back from the server. */}
         <Pressable onPress={() => router.push({ pathname: '/(auth)/phone', params: { mode: 'login' } })} style={{ marginTop: 18 }}>
           <Text center color={colors.textDisabled}>
             Already have an account? <Text weight="bold" color={colors.primary}>Log In</Text>
