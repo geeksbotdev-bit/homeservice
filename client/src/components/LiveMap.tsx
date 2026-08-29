@@ -106,7 +106,18 @@ export function LiveMap({ pro, cust, height = 240, etaText, cleanerName, live = 
     <View style={{ height, overflow: 'hidden', position: 'relative' }}>
       {Platform.OS === 'web'
         ? <iframe ref={iframeRef} srcDoc={htmlRef.current} style={{ border: 0, width: '100%', height }} title="live-map" />
-        : <WebView ref={webRef} originWhitelist={['*']} source={{ html: htmlRef.current }} style={{ flex: 1, backgroundColor: '#EDE8DF' }} javaScriptEnabled domStorageEnabled />}
+        : <WebView
+            ref={webRef}
+            originWhitelist={['*']}
+            source={{ html: htmlRef.current }}
+            style={{ flex: 1, backgroundColor: '#EDE8DF' }}
+            javaScriptEnabled
+            domStorageEnabled
+            // Prevent an Android WebView render-process crash from taking down the app.
+            onRenderProcessGone={() => {}}
+            onError={() => {}}
+            androidLayerType="hardware"
+          />}
 
       {!!etaText && (
         <View style={styles.eta}>

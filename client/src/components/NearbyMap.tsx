@@ -113,6 +113,9 @@ export function NearbyMap({ latitude, longitude, cleaners, height }: Props) {
         style={{ flex: 1, backgroundColor: '#EDE8DF' }}
         javaScriptEnabled
         domStorageEnabled
+        onRenderProcessGone={() => {}}
+        onError={() => {}}
+        androidLayerType="hardware"
       />
     </View>
   );
