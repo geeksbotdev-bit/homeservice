@@ -18,6 +18,7 @@ import { BookingProvider } from '../src/store/booking';
 import { LanguageProvider } from '../src/store/lang';
 import { Toaster } from '../src/components';
 import { AppTabBar } from '../src/components/AppTabBar';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { setUnauthorizedHandler, restoreSession } from '../src/services/client';
 import '../src/services/firebase'; // initializes Firebase at app startup
 
@@ -95,6 +96,7 @@ export default function RootLayout() {
           {/* On web, constrain to a phone-width column so the mobile design
               renders correctly instead of stretching across the browser. */}
           <View style={styles.frame}>
+            <ErrorBoundary>
             <View style={{ flex: 1 }}>
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#fff' } }}>
               <Stack.Screen name="index" />
@@ -121,6 +123,7 @@ export default function RootLayout() {
             </Stack>
             </View>
             <AppTabBar />
+            </ErrorBoundary>
             <Toaster />
           </View>
         </BookingProvider>

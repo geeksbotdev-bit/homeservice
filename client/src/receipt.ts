@@ -1,7 +1,7 @@
 import { Platform, Alert } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { buildInvoice, type InvoiceData } from './invoice';
+import type { InvoiceData } from './invoice';
 import { formatPKR } from './utils';
 
 const METHOD_LABEL: Record<string, string> = {
@@ -35,6 +35,9 @@ export function invoiceHtml(d: InvoiceData): string {
 export async function downloadReceipt(d: InvoiceData) {
   try {
     if (Platform.OS === 'web') {
+      // jsPDF is a browser/DOM library — import it ONLY on web, lazily, so it
+      // never loads (and crashes) on native.
+      const { buildInvoice } = await import('./invoice');
       buildInvoice(d).save(`Receipt-${d.invoiceNo}.pdf`);
     } else {
       const { uri } = await Print.printToFileAsync({ html: invoiceHtml(d) });
