@@ -43,10 +43,25 @@ export default function ProJobs() {
       await fn();
     } catch (e: any) {
       // e.g. not verified (403), or a scheduled job claimed by someone else first.
-      showToast('Could not accept', e?.message || 'Please try again');
+      showToast('Could not update the job', e?.message || 'Please try again');
     }
     await pro.jobs().then(setData).catch(() => {});
     setBusy(null);
+  }
+
+  // Same rule as the job screen: starting needs a "before" photo and completing
+  // needs an "after" one, so those steps go to the upload screen rather than
+  // failing against the server.
+  function advance(b: Booking, to: BookingStatus) {
+    if (to === 'in_progress' && !b.beforePhotos?.length) {
+      router.push(`/job-photos/${b.id}?kind=before`);
+      return;
+    }
+    if (to === 'completed' && !b.afterPhotos?.length) {
+      router.push(`/job-photos/${b.id}?kind=after`);
+      return;
+    }
+    act(b.id, () => pro.setStatus(b.id, to));
   }
 
   // Block accepting until identity is verified — send them to the verify screen.
@@ -165,7 +180,7 @@ export default function ProJobs() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Text weight="extrabold" color={colors.primary} style={{ fontSize: 17 }}>{formatPKR(b.total)}</Text>
                     {next && (
-                      <Pressable onPress={() => act(b.id, () => pro.setStatus(b.id, next.to))} disabled={busy === b.id} style={[styles.action, busy === b.id && { opacity: 0.6 }]}>
+                      <Pressable onPress={() => advance(b, next.to)} disabled={busy === b.id} style={[styles.action, busy === b.id && { opacity: 0.6 }]}>
                         {busy === b.id ? <ActivityIndicator color={colors.white} size="small" /> : <><Feather name={next.icon} size={15} color={colors.white} /><Text weight="bold" color={colors.white} style={{ fontSize: 13 }}>{next.label}</Text></>}
                       </Pressable>
                     )}

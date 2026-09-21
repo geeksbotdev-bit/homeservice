@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { Text, Button, Logo } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { user as userApi } from '../../src/services/api';
+import { isPro } from '../../src/services/client';
 
 /** First-time registration: new user completes their profile, then enters the app. */
 export default function Register() {
@@ -16,7 +17,9 @@ export default function Register() {
   const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const home = role === 'professional' ? '/(pro)' : '/(tabs)';
+  // The saved session role (set from the server at sign-in) decides the home
+  // screen; the param is only a fallback for the very first signup hop.
+  const home = isPro() || role === 'professional' ? '/(pro)' : '/(tabs)';
 
   async function finish() {
     if (!name.trim()) return;

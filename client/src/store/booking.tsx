@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { Service, AddOn, Cleaner } from '../data/types';
 import { FEE_PCT } from '../services/api';
+import { onSessionReset } from '../services/session';
 
 const DRAFT_KEY = 'hs_booking_draft';
 // Persist the in-progress booking so a web refresh / deep-link doesn't blank
@@ -50,6 +51,9 @@ const Ctx = createContext<BookingCtx | null>(null);
 export function BookingProvider({ children }: { children: React.ReactNode }) {
   const [draft, setDraft] = useState<Draft>(() => loadDraft() ?? initial);
   useEffect(() => { saveDraft(draft); }, [draft]);
+  // Signing out must not leave the previous user's booking in the flow (the
+  // draft lives in memory too, so clearing storage alone is not enough).
+  useEffect(() => onSessionReset(() => setDraft(initial)), []);
 
   const value = useMemo<BookingCtx>(() => {
     const service = draft.service;

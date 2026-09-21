@@ -21,12 +21,9 @@ export default function Confirm() {
   const [me, setMe] = useState<User | null>(null);
   const [payIdx, setPayIdx] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [payUrl, setPayUrl] = useState<string | null>(null); // in-app gateway (web)
   const [err, setErr] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => { userApi.me().then(setMe); }, []);
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   const service = draft.service;
   if (!service) {
@@ -50,6 +47,7 @@ export default function Confirm() {
 
   async function confirm() {
     setLoading(true);
+    const isWeb = Platform.OS === 'web' && typeof window !== 'undefined';
     const res: any = await bookingsApi.create({
       // fields the mock/backend record needs to render correctly:
       service: service!.name,
@@ -77,23 +75,16 @@ export default function Confirm() {
     setErr(null);
     try {
       const { launchUrl } = await payments.createSession(res.id);
-      if (Platform.OS === 'web') {
-        // Open the secure card form INSIDE the app (embedded iframe), not a new tab.
-        setLoading(false);
-        setPayUrl(launchUrl);
-        const t = setInterval(async () => {
-          const r = await payments.verify(res.id).catch(() => null);
-          if (r?.status === 'paid') {
-            clearInterval(t);
-            setPayUrl(null);
-            router.replace({ pathname: '/booking/finding', params: { id: res.id } });
-          }
-        }, 2500);
-        pollRef.current = t;
-      } else {
-        // Native: the gateway opens in an in-app browser screen (still in-app).
-        router.replace({ pathname: '/pay-webview', params: { url: launchUrl, id: res.id } });
+      if (isWeb) {
+        // Go to the bank in THIS tab. The gateway refuses to be framed and
+        // pop-ups can be blocked, so a plain top-level navigation is the only
+        // reliable route. The server's return URL brings us back to
+        // /booking/finding (or /booking/payment?failed=1) when it's done.
+        window.location.assign(launchUrl);
+        return;
       }
+      // Native: the gateway opens in an in-app browser screen (still in-app).
+      router.replace({ pathname: '/pay-webview', params: { url: launchUrl, id: res.id } });
     } catch (e: any) {
       setLoading(false);
       setErr(String(e?.message ?? '').includes('401') ? 'Session expired — please sign in again.' : 'Could not start payment. Please try again.');
@@ -238,25 +229,6 @@ export default function Confirm() {
         />
       </View>
 
-      {/* In-app secure card gateway (web) — embedded, no new tab */}
-      <Modal visible={!!payUrl} animationType="slide" onRequestClose={() => { if (pollRef.current) clearInterval(pollRef.current); setPayUrl(null); }}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
-          <View style={styles.payHead}>
-            <Pressable onPress={() => { if (pollRef.current) clearInterval(pollRef.current); setPayUrl(null); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Feather name="chevron-left" size={20} color={colors.textSecondary} />
-              <Text weight="semibold" color={colors.textSecondary}>Cancel</Text>
-            </Pressable>
-            <Text weight="bold" style={{ fontSize: 15 }}>Secure Payment</Text>
-            <View style={{ width: 60 }} />
-          </View>
-          {Platform.OS === 'web' && payUrl ? (
-            // @ts-ignore — DOM iframe on web
-            <iframe src={payUrl} style={{ border: 0, width: '100%', flex: 1 }} title="secure-payment" />
-          ) : (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.primary} /></View>
-          )}
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }

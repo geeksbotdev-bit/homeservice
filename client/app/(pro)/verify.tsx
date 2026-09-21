@@ -32,7 +32,7 @@ export default function Verify() {
       if (!perm.granted && Platform.OS !== 'web') { showToast('Permission needed', 'Allow photo access to continue'); return; }
       const res = camera
         ? await ImagePicker.launchCameraAsync({ base64: true, quality: 0.5 })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, base64: true, quality: 0.5 });
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.5 });
       if (res.canceled || !res.assets?.[0]?.base64) return;
       const a = res.assets[0];
       const mime = a.mimeType || 'image/jpeg';

@@ -62,6 +62,8 @@ export interface Booking {
   accepted?: boolean;         // cleaner accepted the job request
   rating?: number;            // client's rating after completion
   invoiceNo?: string;
+  beforePhotos?: string[];    // site as the cleaner found it (captured at job start)
+  afterPhotos?: string[];     // finished work (captured before completing)
   payment?: { method: string; txnId: string; amount: number; status: string; refundAmount?: number };
   custLat?: number;
   custLng?: number;

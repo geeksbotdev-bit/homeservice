@@ -78,6 +78,8 @@ export function serializeBooking(b: any) {
     accepted: b.accepted ?? undefined,
     rating: b.rating ?? undefined,
     invoiceNo: b.invoiceNo ?? undefined,
+    beforePhotos: b.beforePhotos ? safeParse(b.beforePhotos) : undefined,
+    afterPhotos: b.afterPhotos ? safeParse(b.afterPhotos) : undefined,
     payment: b.payment ? { method: b.payment.method, txnId: b.payment.txnId, amount: b.payment.amount, status: b.payment.status, refundAmount: b.payment.refundAmount ?? undefined } : undefined,
     // Live location sharing
     custLat: b.custLat ?? undefined,

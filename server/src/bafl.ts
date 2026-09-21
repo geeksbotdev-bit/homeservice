@@ -52,9 +52,16 @@ export function refundOrder(orderId: string, txnId: string, amount: number) {
   });
 }
 
-/** The Checkout.js launcher — renders the card form EMBEDDED (in-app), so the
- *  customer never leaves for a separate web page. On completion it returns to
- *  `returnUrl` (server verifies the outcome there). */
+/**
+ * The Checkout.js launcher.
+ *
+ * It REDIRECTS to the bank's hosted card page (`showPaymentPage`) — the
+ * embedded mode cannot work: the gateway serves its checkout with
+ * `X-Frame-Options: SAMEORIGIN` and `frame-ancestors 'self'`, so the iframe it
+ * creates on our page is blocked by the browser and the form stays blank.
+ * On completion the bank returns to `returnUrl`, where the server verifies the
+ * outcome and bounces back into the app.
+ */
 export function launcherHtml(sessionId: string, cancelUrl: string, returnUrl: string) {
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -74,10 +81,16 @@ export function launcherHtml(sessionId: string, cancelUrl: string, returnUrl: st
 <script src="${BASE}/static/checkout/checkout.min.js"
   data-error="errorCallback" data-cancel="${cancelUrl}" data-complete="completeCallback"></script>
 <script>
-  function errorCallback(err){ var e=document.getElementById('err'); if(e){ e.style.display='block'; e.textContent='Payment could not start. Please go back and try again.'; } }
+  function errorCallback(err){
+    var e=document.getElementById('err');
+    if(e){ e.style.display='block'; e.textContent='Payment could not start. Please go back and try again.'; }
+    var s=document.getElementById('spin'); if(s){ s.style.display='none'; }
+  }
   function completeCallback(resultIndicator){ window.location.href='${returnUrl}' + (resultIndicator ? ('&resultIndicator=' + encodeURIComponent(resultIndicator)) : ''); }
   Checkout.configure({ session: { id: '${sessionId}' } });
-  window.addEventListener('load', function(){ try { Checkout.showEmbeddedPage('#embed'); } catch(e) { errorCallback(e); } });
+  // Full-page redirect to the bank's card form (embedding is blocked by the
+  // gateway's own X-Frame-Options / frame-ancestors headers).
+  window.addEventListener('load', function(){ try { Checkout.showPaymentPage(); } catch(e) { errorCallback(e); } });
 </script></head>
 <body>
   <div class="top">
@@ -85,6 +98,10 @@ export function launcherHtml(sessionId: string, cancelUrl: string, returnUrl: st
     <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Secure payment</div>
   </div>
   <div id="err"></div>
-  <div id="embed"></div>
+  <div id="spin" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:70px 20px;color:#6B7280;font-size:14px">
+    <div style="width:34px;height:34px;border:3px solid #E5E7EB;border-top-color:#0B7C82;border-radius:50%;animation:sp 0.9s linear infinite"></div>
+    Taking you to the secure card page…
+    <style>@keyframes sp{to{transform:rotate(360deg)}}</style>
+  </div>
 </body></html>`;
 }

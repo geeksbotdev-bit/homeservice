@@ -15,11 +15,12 @@ import {
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { BookingProvider } from '../src/store/booking';
-import { LanguageProvider } from '../src/store/lang';
+import { LanguageProvider, restoreLang } from '../src/store/lang';
 import { Toaster } from '../src/components';
 import { AppTabBar } from '../src/components/AppTabBar';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
-import { setUnauthorizedHandler, restoreSession } from '../src/services/client';
+import { setUnauthorizedHandler, restoreSession, isAuthed, setUserRole } from '../src/services/client';
+import { user as userApi } from '../src/services/api';
 import '../src/services/firebase'; // initializes Firebase at app startup
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -37,7 +38,27 @@ export default function RootLayout() {
   // Restore the persisted session (token + role) BEFORE routing, so a signed-in
   // user isn't briefly bounced to Welcome on native (where restore is async).
   const [sessionReady, setSessionReady] = useState(false);
-  useEffect(() => { restoreSession().finally(() => setSessionReady(true)); }, []);
+  useEffect(() => {
+    // The saved language loads with the session so the first screen is already
+    // in the right language (native storage is async — no English flash).
+    Promise.all([restoreLang(), restoreSession()])
+      // Re-read the role from the server: the account is the source of truth,
+      // so a cleaner always comes back as a cleaner after a refresh. Failures
+      // (offline) keep the stored role rather than blocking startup.
+      .then(async () => {
+        if (!isAuthed()) return;
+        try {
+          // Never let a slow network hold the splash screen: give up after 2.5s
+          // and start with the stored role (the sync runs again next launch).
+          const me = await Promise.race([
+            userApi.me(),
+            new Promise<null>((r) => setTimeout(() => r(null), 2500)),
+          ]);
+          if (me?.role) setUserRole(me.role === 'pro' || me.role === 'professional' ? 'pro' : 'client');
+        } catch { /* offline — keep the persisted role */ }
+      })
+      .finally(() => setSessionReady(true));
+  }, []);
 
   const ready = loaded && sessionReady;
   useEffect(() => {
@@ -113,6 +134,7 @@ export default function RootLayout() {
               <Stack.Screen name="booking/[id]" />
               <Stack.Screen name="chat/[bookingId]" />
               <Stack.Screen name="pro-job/[id]" />
+              <Stack.Screen name="job-photos/[id]" />
               <Stack.Screen name="rate/[bookingId]" options={{ presentation: 'modal' }} />
               <Stack.Screen name="address/new" options={{ presentation: 'modal' }} />
               <Stack.Screen name="payment/new" options={{ presentation: 'modal' }} />

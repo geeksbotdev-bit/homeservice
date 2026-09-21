@@ -7,12 +7,13 @@ import { Text, Card } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
 import { pro } from '../../src/services/api';
 import { logout } from '../../src/services/session';
-import { useLang } from '../../src/store/lang';
+import { useLang, LANGUAGES } from '../../src/store/lang';
 import type { Cleaner } from '../../src/data/types';
 
 export default function ProProfile() {
   const router = useRouter();
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const langNative = LANGUAGES.find((l) => l.code === lang)?.native ?? 'English';
   const [me, setMe] = useState<Cleaner | null>(null);
 
   useFocusEffect(useCallback(() => { pro.profile().then(setMe); }, []));
@@ -87,6 +88,8 @@ export default function ProProfile() {
             { icon: 'file-text', label: 'My Documents', onPress: () => Linking.openURL('https://example.com/pro/documents') },
             { icon: 'bell', label: 'Notifications', onPress: () => Linking.openURL('https://example.com/pro/notifications') },
             { icon: 'star', label: 'Reviews', onPress: () => router.push('/(pro)/reviews') },
+            // Cleaners pick their language here too — same screen the customer uses.
+            { icon: 'globe', label: `${t('Language')} · ${langNative}`, onPress: () => router.push('/language') },
             { icon: 'help-circle', label: 'Help & Support', onPress: () => Linking.openURL('https://wa.me/923001234567') },
           ].map((item, i, arr) => (
             <Pressable key={item.label} style={[styles.row, i < arr.length - 1 && styles.divider]} onPress={item.onPress}>

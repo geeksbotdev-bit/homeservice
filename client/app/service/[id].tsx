@@ -9,12 +9,16 @@ import { colors, radius, shadow } from '../../src/theme/theme';
 import { services as servicesApi, type Review } from '../../src/services/api';
 import { formatPKR } from '../../src/utils';
 import { useBooking } from '../../src/store/booking';
+import { useLang } from '../../src/store/lang';
 import type { Service } from '../../src/data/types';
 
 export default function ServiceDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { draft, startBooking, setQuantity, toggleAddOn, total } = useBooking();
+  // Lines that mix copy with a value need the phrase translated as a whole —
+  // word order differs in Urdu, so the value can't just be concatenated.
+  const { t, tf } = useLang();
   const [service, setService] = useState<Service | null>(draft.service ?? null);
   const [fav, setFav] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -72,7 +76,7 @@ export default function ServiceDetail() {
               <>
                 <Stars value={Math.round(service.rating)} size={13} />
                 <Text weight="bold" color={colors.textSecondary} style={{ fontSize: 13 }}>{service.rating}</Text>
-                <Text variant="bodySm" color={colors.textDisabled}>({service.reviews} reviews)</Text>
+                <Text variant="bodySm" color={colors.textDisabled} noTranslate>{tf('({n} reviews)', { n: service.reviews })}</Text>
               </>
             ) : (
               <Text weight="bold" color={colors.primary} style={{ fontSize: 13 }}>New service</Text>
@@ -91,7 +95,9 @@ export default function ServiceDetail() {
             <View style={{ flex: 1 }}>
               <Text variant="caption" color={colors.textTertiary} style={{ fontSize: 11, letterSpacing: 0.5 }}>BASE PRICE</Text>
               <Text weight="extrabold" color={colors.primary} style={{ fontSize: 30, letterSpacing: -1, marginTop: 2 }}>{formatPKR(service.basePrice)}</Text>
-              <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 4 }}>{service.unitLabel} · supplies included</Text>
+              <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 4 }} noTranslate>
+                {tf('{unit} · supplies included', { unit: t(service.unitLabel) })}
+              </Text>
             </View>
             <View style={styles.quickBadge}>
               <Text weight="bold" color={colors.primary} style={{ fontSize: 10, letterSpacing: 0.5 }}>{service.category}</Text>
@@ -123,8 +129,10 @@ export default function ServiceDetail() {
           <View style={styles.divider} />
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ flex: 1 }}>
-              <Text variant="h3" style={{ fontSize: 15 }}>Number of {service.unitNoun}s</Text>
-              <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 3 }}>{formatPKR(service.basePrice)} per {service.unitNoun}</Text>
+              <Text variant="h3" style={{ fontSize: 15 }} noTranslate>{tf('Number of {noun}s', { noun: t(service.unitNoun) })}</Text>
+              <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 3 }} noTranslate>
+                {tf('{price} per {noun}', { price: formatPKR(service.basePrice), noun: t(service.unitNoun) })}
+              </Text>
             </View>
             <View style={styles.stepper}>
               <Pressable onPress={() => setQuantity(draft.quantity - 1)} style={[styles.stepBtn, draft.quantity <= 1 && styles.stepBtnOff]}>

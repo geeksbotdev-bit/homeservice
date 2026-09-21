@@ -43,9 +43,49 @@ app.get('/health', (_req, res) => res.json({ ok: true, service: 'homeservice-api
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
 
+/**
+ * Every phone is stored in ONE canonical shape: +92XXXXXXXXXX (no spaces, no
+ * trunk zero). People type "03232013083", "3232013083" and "+92 323 2013083"
+ * interchangeably — without this each spelling became a *separate* account, so
+ * a signed-up cleaner was asked to register again and came back as a customer.
+ */
+function normalizePhone(raw?: string | null): string {
+  const s = String(raw ?? '').replace(/[^\d+]/g, '');
+  if (!s) return '';
+  const hadPlus = s.startsWith('+') || s.startsWith('00');
+  const digits = s.replace(/\D/g, '').replace(/^00/, '');
+  if (!digits) return '';
+  if (digits.startsWith('92')) return '+92' + digits.slice(2).replace(/^0+/, '');
+  if (!hadPlus) return '+92' + digits.replace(/^0+/, ''); // typed the local PK number
+  return '+' + digits;                                    // some other country, left as-is
+}
+
+/**
+ * Look a user up by phone, tolerating rows written before normalization, and
+ * heal the row to the canonical form so the next login matches directly.
+ */
+async function findUserByPhone(e164: string) {
+  if (!e164) return null;
+  const local = e164.startsWith('+92') ? e164.slice(3) : e164.replace(/^\+/, '');
+  const variants = [e164, `+92 ${local}`, `+92${local}`, `+920${local}`, `+92 0${local}`, `0${local}`, local, `92${local}`];
+  let user = await prisma.user.findFirst({ where: { phone: { in: variants } } });
+  if (!user) {
+    // Legacy rows with inner spaces ("+92 312 3456789") can't be enumerated as
+    // variants — only those are re-checked, so a new number costs no scan.
+    const spaced = await prisma.user.findMany({ where: { phone: { contains: ' ' } }, select: { id: true, phone: true } });
+    const hit = spaced.find((u) => normalizePhone(u.phone) === e164);
+    if (hit) user = await prisma.user.findUnique({ where: { id: hit.id } });
+  }
+  if (user && user.phone !== e164) {
+    const clash = await prisma.user.findFirst({ where: { phone: e164, NOT: { id: user.id } } });
+    if (!clash) user = await prisma.user.update({ where: { id: user.id }, data: { phone: e164 } });
+  }
+  return user;
+}
+
 app.post('/auth/request-otp', wrap(async (req, res) => {
   const { phone } = req.body as { phone?: string };
-  const normalized = (phone || '').trim();
+  const normalized = normalizePhone(phone);
   if (!normalized) return res.status(400).json({ error: 'Phone number required' });
   const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
   const expires = new Date(Date.now() + OTP_TTL_MS);
@@ -60,9 +100,20 @@ app.post('/auth/request-otp', wrap(async (req, res) => {
   ok(res, { ok: true, ttl: OTP_TTL_MS / 1000, ...(smsConfigured ? {} : { devCode: code }) });
 }));
 
+/**
+ * The role a signup screen asked for. It applies ONLY when the account is
+ * created: an existing account always signs in with the role it already has —
+ * a customer account stays a customer, a cleaner account stays a cleaner, no
+ * matter which button was used. Switching is a deliberate act (POST /me/role).
+ */
+function wantedRole(role?: string | null): 'pro' | 'client' | null {
+  if (!role) return null;
+  return role === 'professional' || role === 'pro' || role === 'cleaner' ? 'pro' : 'client';
+}
+
 app.post('/auth/verify-otp', wrap(async (req, res) => {
   const { phone, code, role } = req.body as { phone?: string; code?: string; role?: string };
-  const normalized = (phone || '').trim();
+  const normalized = normalizePhone(phone);
   if (!normalized) return res.status(400).json({ error: 'Phone number required' });
 
   // Enforce the OTP if one was requested for this number.
@@ -77,32 +128,46 @@ app.post('/auth/verify-otp', wrap(async (req, res) => {
   }
 
   // Existing phone → login. New phone → create a fresh, empty account.
-  let user = await prisma.user.findFirst({ where: { phone: normalized } });
+  const wanted = wantedRole(role);
+  let user = await findUserByPhone(normalized);
   const isNew = !user;
   if (!user) {
     user = await prisma.user.create({
-      data: { name: '', phone: normalized, role: role === 'professional' ? 'pro' : 'client', location: '' },
+      data: { name: '', phone: normalized, role: wanted === 'pro' ? 'pro' : 'client', location: '' },
     });
   }
+  // An existing account keeps its own role — the signup choice is ignored here.
   const full = await loadUser(user.id);
   ok(res, { token: signToken(user.id), user: serializeUser(full), isNew });
 }));
 
 app.post('/auth/google', wrap(async (req, res) => {
-  const { idToken, name, email } = req.body as { idToken?: string; name?: string; email?: string };
+  const { idToken, name, email, role } = req.body as { idToken?: string; name?: string; email?: string; role?: string };
   const decoded = idToken ? await verifyIdToken(idToken) : null;
   const resolvedEmail = decoded?.email ?? email;
   const resolvedName = decoded?.name ?? name ?? 'Google User';
   const uid = decoded?.uid;
+  const wanted = wantedRole(role);
 
-  let user = resolvedEmail
-    ? await prisma.user.findFirst({ where: { email: resolvedEmail } })
-    : uid ? await prisma.user.findFirst({ where: { firebaseUid: uid } }) : null;
+  // Match the SAME person on every signal Google can give us (email, Firebase
+  // uid, phone) — signing in with Google must never fork a second account.
+  let user =
+    (resolvedEmail ? await prisma.user.findFirst({ where: { email: resolvedEmail } }) : null) ??
+    (uid ? await prisma.user.findFirst({ where: { firebaseUid: uid } }) : null) ??
+    (decoded?.phone_number ? await findUserByPhone(normalizePhone(decoded.phone_number)) : null);
   const isNew = !user;
   if (!user) {
     user = await prisma.user.create({
-      data: { name: resolvedName, email: resolvedEmail, firebaseUid: uid, role: 'client', location: '' },
+      data: { name: resolvedName, email: resolvedEmail, firebaseUid: uid, role: wanted === 'pro' ? 'pro' : 'client', location: '' },
     });
+  } else {
+    // Link this Google identity to the account that already exists. Its role is
+    // left untouched — the account decides, not the button that was pressed.
+    const link: any = {};
+    if (uid && !user.firebaseUid) link.firebaseUid = uid;
+    if (resolvedEmail && !user.email) link.email = resolvedEmail;
+    if (!user.name && resolvedName) link.name = resolvedName;
+    if (Object.keys(link).length) user = await prisma.user.update({ where: { id: user.id }, data: link });
   }
   const full = await loadUser(user.id);
   ok(res, { token: signToken(user.id), user: serializeUser(full), isNew });
@@ -110,21 +175,27 @@ app.post('/auth/google', wrap(async (req, res) => {
 
 app.post('/auth/firebase', wrap(async (req, res) => {
   // Exchanges a Firebase Phone-Auth ID token for an app session.
-  const { idToken, phone, name } = req.body as { idToken?: string; phone?: string; name?: string };
+  const { idToken, phone, name, role } = req.body as { idToken?: string; phone?: string; name?: string; role?: string };
   const decoded = idToken ? await verifyIdToken(idToken) : null;
-  const resolvedPhone = decoded?.phone_number ?? phone ?? '';
+  const resolvedPhone = normalizePhone(decoded?.phone_number ?? phone ?? '');
   const uid = decoded?.uid;
+  const wanted = wantedRole(role);
 
   let user =
     (uid ? await prisma.user.findFirst({ where: { firebaseUid: uid } }) : null) ??
-    (resolvedPhone ? await prisma.user.findFirst({ where: { phone: resolvedPhone } }) : null);
+    (resolvedPhone ? await findUserByPhone(resolvedPhone) : null);
   const isNew = !user;
   if (!user) {
     user = await prisma.user.create({
-      data: { name: name ?? '', phone: resolvedPhone || null, firebaseUid: uid, role: 'client', location: '' },
+      data: { name: name ?? '', phone: resolvedPhone || null, firebaseUid: uid, role: wanted === 'pro' ? 'pro' : 'client', location: '' },
     });
-  } else if (uid && !user.firebaseUid) {
-    await prisma.user.update({ where: { id: user.id }, data: { firebaseUid: uid } });
+  } else {
+    const link: any = {};
+    if (uid && !user.firebaseUid) link.firebaseUid = uid;
+    if (resolvedPhone && !user.phone) link.phone = resolvedPhone;
+    if (!user.name && name) link.name = name;
+    if (Object.keys(link).length) user = await prisma.user.update({ where: { id: user.id }, data: link });
+    // Existing account → its stored role stands.
   }
   const full = await loadUser(user.id);
   ok(res, { token: signToken(user.id), user: serializeUser(full), isNew });
@@ -190,13 +261,24 @@ app.get('/me', requireAuth, wrap(async (req, res) => {
 
 app.patch('/me', requireAuth, wrap(async (req, res) => {
   const { name, email, location, phone, avatarUrl, gender, dob } = req.body as any;
+  // Store the phone in the same canonical shape auth uses, and never let two
+  // accounts end up holding the same number.
+  const nextPhone = phone !== undefined ? normalizePhone(phone) : undefined;
+  if (nextPhone) {
+    const taken = await prisma.user.findFirst({ where: { phone: nextPhone, NOT: { id: req.userId! } } });
+    if (taken) throw httpError(409, 'That phone number is already used by another account.');
+  }
+  if (email) {
+    const taken = await prisma.user.findFirst({ where: { email, NOT: { id: req.userId! } } });
+    if (taken) throw httpError(409, 'That email is already used by another account.');
+  }
   await prisma.user.update({
     where: { id: req.userId! },
     data: {
       ...(name !== undefined ? { name } : {}),
       ...(email !== undefined ? { email: email || null } : {}),
       ...(location !== undefined ? { location } : {}),
-      ...(phone !== undefined ? { phone: phone || null } : {}),
+      ...(nextPhone !== undefined ? { phone: nextPhone || null } : {}),
       ...(avatarUrl !== undefined ? { avatarUrl: avatarUrl || null } : {}),
       ...(gender !== undefined ? { gender: gender || null } : {}),
       ...(dob !== undefined ? { dob: dob || null } : {}),
@@ -325,10 +407,17 @@ app.post('/pro/verify', requireAuth, wrap(async (req, res) => {
 app.patch('/pro/profile', requireAuth, wrap(async (req, res) => {
   const { name, bio, available } = req.body as any;
   const me = await getMyCleaner(req.userId!);
+  // A pro who names their cleaner profile HAS a name — mirror it onto the
+  // account, otherwise the next login thinks the profile is incomplete and
+  // sends them back to the registration screen.
+  if (name) {
+    const u = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
+    if (!u?.name) await prisma.user.update({ where: { id: req.userId! }, data: { name } });
+  }
   const updated = await prisma.cleaner.update({
     where: { id: me.id },
     data: {
-      ...(name !== undefined ? { name } : {}),
+      ...(name !== undefined ? { name, initials: initialsOf(name) } : {}),
       ...(bio !== undefined ? { bio } : {}),
       ...(available !== undefined ? { available } : {}),
     },
@@ -399,9 +488,23 @@ app.post('/pro/bookings/:id/reject', requireAuth, wrap(async (req, res) => {
 }));
 
 app.post('/pro/bookings/:id/status', requireAuth, wrap(async (req, res) => {
-  const { status } = req.body as { status: string };
+  const { status, beforePhotos, afterPhotos } = req.body as { status: string; beforePhotos?: string[]; afterPhotos?: string[] };
   const prev = await prisma.booking.findUnique({ where: { id: req.params.id } });
-  const b = await prisma.booking.update({ where: { id: req.params.id }, data: { status } });
+  const has = (saved?: string | null, sent?: string[]) => !!saved || (Array.isArray(sent) && sent.length > 0);
+  // Photo evidence, so a later dispute has a record from both ends:
+  //  • "before" — the site as the cleaner found it, required to START the job
+  //  • "after"  — the finished work, required to COMPLETE the job
+  if (status === 'in_progress' && !has(prev?.beforePhotos, beforePhotos)) {
+    throw httpError(400, 'Add at least one "before" photo of the site to start the job');
+  }
+  if (status === 'completed' && !has(prev?.afterPhotos, afterPhotos)) {
+    throw httpError(400, 'Add at least one "after" photo of the finished work to complete the job');
+  }
+  const photos = {
+    ...(Array.isArray(beforePhotos) && beforePhotos.length ? { beforePhotos: JSON.stringify(beforePhotos.slice(0, 10)) } : {}),
+    ...(Array.isArray(afterPhotos) && afterPhotos.length ? { afterPhotos: JSON.stringify(afterPhotos.slice(0, 10)) } : {}),
+  };
+  const b = await prisma.booking.update({ where: { id: req.params.id }, data: { status, ...photos } });
   // On completion, increment the cleaner's completed-jobs count (once).
   if (status === 'completed' && prev?.status !== 'completed' && b.cleanerId) {
     await prisma.cleaner.update({ where: { id: b.cleanerId }, data: { jobs: { increment: 1 } } });
@@ -1165,7 +1268,12 @@ app.delete('/admin/cleaners/:id', requireAdmin, wrap(async (req, res) => {
 }));
 
 // Serve the admin portal (single-page dashboard). cwd = server/ under tsx (ESM).
-app.get('/admin', (_req, res) => res.sendFile(path.join(process.cwd(), 'public', 'admin.html')));
+// The admin panel is a single static page. Never let a browser keep an old
+// copy — a cached build silently hides newly added columns and actions.
+app.get('/admin', (_req, res) => {
+  res.set('Cache-Control', 'no-store, must-revalidate');
+  res.sendFile(path.join(process.cwd(), 'public', 'admin.html'));
+});
 
 // On Vercel the app runs as a serverless handler (exported below) — no listen.
 // Locally / on a persistent host, start the HTTP server.

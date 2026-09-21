@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Image } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome } from '@expo/vector-icons';
@@ -314,6 +314,15 @@ export default function BookingDetail() {
           </View>
         </Card>
 
+        {/* Work photos the cleaner captured on site */}
+        {(!!b.beforePhotos?.length || !!b.afterPhotos?.length) && (
+          <Card style={{ padding: 16, gap: 12 }}>
+            <Text variant="caption" color={colors.textDisabled} style={{ letterSpacing: 1 }}>WORK PHOTOS</Text>
+            {!!b.beforePhotos?.length && <PhotoStrip label="Before" photos={b.beforePhotos} />}
+            {!!b.afterPhotos?.length && <PhotoStrip label="After" photos={b.afterPhotos} />}
+          </Card>
+        )}
+
         {/* Refunded banner */}
         {b.payment?.status === 'refunded' && (
           <View style={styles.refundCard}>
@@ -375,8 +384,23 @@ export default function BookingDetail() {
   );
 }
 
+/** Before / after photos the cleaner captured, shown to the customer. */
+function PhotoStrip({ label, photos }: { label: string; photos: string[] }) {
+  return (
+    <View style={{ gap: 8 }}>
+      <Text weight="semibold" style={{ fontSize: 13 }}>{label}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+        {photos.map((uri, i) => (
+          <Image key={`${label}-${i}`} source={{ uri }} style={styles.workPhoto} resizeMode="cover" />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surfaceAlt },
+  workPhoto: { width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.surface },
   header: { backgroundColor: colors.white },
   map: { height: 150, backgroundColor: colors.primary50, alignItems: 'center', justifyContent: 'center' },
   avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: colors.primary200, alignItems: 'center', justifyContent: 'center' },

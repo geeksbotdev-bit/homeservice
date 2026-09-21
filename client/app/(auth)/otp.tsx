@@ -3,11 +3,12 @@ import { View, StyleSheet, TextInput, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { Text, Button, NavBar } from '../../src/components';
+import { Text, Button, NavBar, toFullPk } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { auth } from '../../src/services/api';
 import { setAuthToken, setUserRole } from '../../src/services/client';
 import { confirmOtp } from '../../src/services/phoneAuth';
+import { showToast } from '../../src/store/toast';
 
 export default function Otp() {
   const router = useRouter();
@@ -55,21 +56,33 @@ export default function Otp() {
     setLoading(true);
     try {
       const wantRole = role === 'professional' ? 'professional' : 'client';
+      const e164 = toFullPk(phone ?? '');
       let res: any;
       if (isFirebaseOtp) {
         // Real Firebase SMS: confirm the code, then exchange the ID token.
         const { idToken, phone: fbPhone, name } = await confirmOtp(code);
-        res = await auth.firebase(idToken, fbPhone ?? '+92' + (phone ?? ''), name);
+        res = await auth.firebase(idToken, fbPhone ?? e164, name, role ? wantRole : undefined);
       } else {
-        res = await auth.verifyOtp('+92' + (phone ?? ''), code, wantRole);
+        res = await auth.verifyOtp(e164, code, wantRole);
       }
       setAuthToken(res.token);
-      setUserRole(res.user?.role ?? (wantRole === 'professional' ? 'pro' : 'client'));
+      // Always persist what the SERVER says the account is — otherwise the app
+      // shows the cleaner UI now and falls back to customer on the next launch.
+      const serverRole = res.user?.role;
+      const pro = serverRole === 'pro' || serverRole === 'professional';
+      setUserRole(pro ? 'pro' : 'client');
       setLoading(false);
-      const pro = wantRole === 'professional' || res.user?.role === 'pro';
-      // New user (or no name yet) → registration to complete profile.
-      if (res.isNew || !res.user?.name) {
-        router.replace({ pathname: '/(auth)/register', params: { role } });
+      // The account's own role always wins. Say so when it differs from the
+      // button they came in on, instead of silently landing on the other app.
+      if (!res.isNew && role && (wantRole === 'professional') !== pro) {
+        showToast(
+          'Signed in to your existing account',
+          pro ? 'This number is registered as a cleaner' : 'This number is registered as a customer',
+        );
+      }
+      // Only a profile with no name still needs registration.
+      if (!res.user?.name) {
+        router.replace({ pathname: '/(auth)/register', params: { role: pro ? 'professional' : 'client' } });
       } else {
         router.replace(pro ? '/(pro)' : '/(tabs)');
       }
@@ -85,7 +98,7 @@ export default function Otp() {
     setError(null);
     setDigits(Array(LENGTH).fill(''));
     try {
-      const r: any = await auth.requestOtp('+92' + (phone ?? ''));
+      const r: any = await auth.requestOtp(toFullPk(phone ?? ''));
       if (r?.devCode) setDevCode(r.devCode);
       setSeconds(60);
       inputs.current[0]?.focus();

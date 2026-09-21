@@ -23,17 +23,18 @@ export const auth = {
       ? delay({ token: 'mock-jwt-token', user: { ...USER, role }, isNew: false })
       : request<AuthResult>('/auth/verify-otp', { method: 'POST', body: { phone, code, role } }),
 
-  // POST /auth/google { idToken, name, email } -> { token, user, isNew }
-  google: (idToken: string, name?: string, email?: string) =>
+  // POST /auth/google { idToken, name, email, role? } -> { token, user, isNew }
+  // `role` is sent on SIGNUP only — on login the account keeps its stored role.
+  google: (idToken: string, name?: string, email?: string, role?: 'client' | 'professional') =>
     USE_MOCKS
-      ? delay({ token: 'mock-jwt-token', user: { ...USER, name: name ?? USER.name, email }, isNew: false })
-      : request<AuthResult>('/auth/google', { method: 'POST', body: { idToken, name, email } }),
+      ? delay({ token: 'mock-jwt-token', user: { ...USER, name: name ?? USER.name, email, ...(role ? { role } : {}) }, isNew: false })
+      : request<AuthResult>('/auth/google', { method: 'POST', body: { idToken, name, email, role } }),
 
-  // POST /auth/firebase { idToken, phone, name } -> { token, user, isNew }
-  firebase: (idToken: string, phone?: string | null, name?: string | null) =>
+  // POST /auth/firebase { idToken, phone, name, role? } -> { token, user, isNew }
+  firebase: (idToken: string, phone?: string | null, name?: string | null, role?: 'client' | 'professional') =>
     USE_MOCKS
-      ? delay({ token: 'mock-jwt-token', user: { ...USER, phone: phone ?? USER.phone }, isNew: false })
-      : request<AuthResult>('/auth/firebase', { method: 'POST', body: { idToken, phone, name } }),
+      ? delay({ token: 'mock-jwt-token', user: { ...USER, phone: phone ?? USER.phone, ...(role ? { role } : {}) }, isNew: false })
+      : request<AuthResult>('/auth/firebase', { method: 'POST', body: { idToken, phone, name, role } }),
 };
 
 export interface AuthResult { token: string; user: User; isNew: boolean }
@@ -239,9 +240,13 @@ export const pro = {
   // POST /pro/bookings/:id/reject -> { ok, reassignedTo }
   reject: (id: string) =>
     USE_MOCKS ? delay({ ok: true, reassignedTo: null }) : request<{ ok: boolean; reassignedTo: string | null }>(`/pro/bookings/${id}/reject`, { method: 'POST' }),
-  // POST /pro/bookings/:id/status { status }
-  setStatus: (id: string, status: string) =>
-    USE_MOCKS ? delay({ ok: true, status }) : request(`/pro/bookings/${id}/status`, { method: 'POST', body: { status } }),
+  // POST /pro/bookings/:id/status { status, beforePhotos?, afterPhotos? }
+  // The server REQUIRES a "before" photo to start the job and an "after" photo
+  // to complete it, so those transitions send the captured image URLs.
+  setStatus: (id: string, status: string, photos?: { beforePhotos?: string[]; afterPhotos?: string[] }) =>
+    USE_MOCKS
+      ? delay({ ok: true, status })
+      : request(`/pro/bookings/${id}/status`, { method: 'POST', body: { status, ...(photos ?? {}) } }),
   // GET /pro/earnings
   earnings: () =>
     USE_MOCKS

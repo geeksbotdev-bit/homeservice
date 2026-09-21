@@ -148,6 +148,14 @@
   </div>
 </div>
 
+<!-- Job photos modal (before / after evidence captured by the cleaner) -->
+<div id="photoModal" class="modal">
+  <div class="modal-card">
+    <div class="modal-head"><b>Job photos</b><span onclick="closePhotos()" style="cursor:pointer;color:var(--faint);font-size:20px">×</span></div>
+    <div class="modal-body" style="max-height:70vh;overflow:auto"><div id="photoBody"></div></div>
+  </div>
+</div>
+
 <!-- New cleaner modal -->
 <div id="clnModal" class="modal">
   <div class="modal-card">
@@ -258,7 +266,7 @@
   function filter(q){ q=q.toLowerCase().trim(); paint(!q?_rows:_rows.filter(r=>JSON.stringify(r).toLowerCase().includes(q))); }
 
   function renderBookings(list) {
-    withSearch('Search bookings…', ['ID','Customer','Service','Cleaner','Type','Status','Amount','Date',''], list, b => `<tr>
+    withSearch('Search bookings…', ['ID','Customer','Service','Cleaner','Type','Status','Amount','Photos','Date',''], list, b => `<tr>
       <td class="mono">${esc(b.id.slice(-6))}</td>
       <td>${esc(b.customer)}</td>
       <td>${esc(b.service)}</td>
@@ -266,9 +274,31 @@
       <td><span class="tag ${b.scheduledType==='later'?'t-gray':'t-teal'}">${b.scheduledType==='later'?'Scheduled':'Instant'}</span></td>
       <td>${statusTag(b.status)}</td>
       <td class="mono">${fmtPKR(b.total)}</td>
+      <td>${photoCell(b)}</td>
       <td class="muted">${fmtDate(b.createdAt)}</td>
       <td style="white-space:nowrap">${['completed','cancelled'].includes(b.status)?'':`<button class="ghost" style="padding:5px 10px;font-size:12px" onclick="openAssign('${esc(b.id)}')">${b.cleaner?'Reassign':'Assign'}</button> <button class="del" onclick="cancelBooking('${esc(b.id)}')">Cancel</button>`}</td></tr>`);
   }
+  // Before/after evidence the cleaner captured on site.
+  function photoCell(b){
+    const n = (b.beforePhotos||[]).length + (b.afterPhotos||[]).length;
+    return n ? `<button class="ghost" style="padding:5px 10px;font-size:12px" onclick="openPhotos('${esc(b.id)}')">View ${n}</button>`
+             : '<span class="muted">—</span>';
+  }
+  function openPhotos(id){
+    const b = (_rows||[]).find(r=>r.id===id); if(!b) return;
+    const strip = (label, list) => `<div style="margin-bottom:14px">
+        <div style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:6px">${label} (${list.length})</div>
+        ${list.length ? `<div style="display:flex;gap:10px;flex-wrap:wrap">${list.map(u=>`<a href="${esc(u)}" target="_blank"><img src="${esc(u)}" style="width:140px;height:110px;object-fit:cover;border-radius:9px;border:1px solid var(--line)" /></a>`).join('')}</div>`
+                       : '<span class="muted" style="font-size:12px">None</span>'}
+      </div>`;
+    document.getElementById('photoBody').innerHTML =
+      `<div class="muted" style="font-size:12px;margin-bottom:12px">${esc(b.service)} · ${esc(b.customer||'—')} · ${b.cleaner?esc(b.cleaner.name):'unassigned'}</div>`
+      + strip('Before — site on arrival', b.beforePhotos||[])
+      + strip('After — finished work', b.afterPhotos||[]);
+    document.getElementById('photoModal').style.display='flex';
+  }
+  function closePhotos(){ document.getElementById('photoModal').style.display='none'; }
+
   function renderCleaners(list) {
     const rows = list.map(c => `<tr>
       <td><span class="avatar">${esc(c.initials)}</span>${esc(c.name)}</td>

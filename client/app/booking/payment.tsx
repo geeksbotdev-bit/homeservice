@@ -15,33 +15,23 @@ export default function Payment() {
   const { total, subtotal, fee, draft, selectedAddOns } = useBooking();
   const service = draft.service;
   const [processing, setProcessing] = useState(false);
-  const [payUrl, setPayUrl] = useState<string | null>(null); // in-app gateway (web)
   const [err, setErr] = useState<string | null>(failed ? 'Payment was cancelled or failed. Please try again.' : null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   const bookingId = id ?? 'HS-2025-00125';
 
-  // Real card payment via Bank Alfalah (MPGS) — embedded IN-APP (no new tab).
+  // Real card payment via Bank Alfalah (MPGS).
+  // On web the gateway CANNOT be shown inside the app: its hosted page sends
+  // `X-Frame-Options: SAMEORIGIN` / `frame-ancestors 'self'`, so both an iframe
+  // and the gateway's own "embedded" mode stay blank. The browser goes to the
+  // bank in this tab and the server's return URL brings it back.
   async function payWithCard() {
     setErr(null);
     setProcessing(true);
+    const isWeb = Platform.OS === 'web' && typeof window !== 'undefined';
     try {
       const { launchUrl } = await payments.createSession(bookingId);
-      if (Platform.OS === 'web') {
-        // Show the secure card form inside the app (embedded iframe), then poll
-        // the booking — the moment the gateway confirms payment, we continue.
-        setProcessing(false);
-        setPayUrl(launchUrl);
-        const t = setInterval(async () => {
-          const r = await payments.verify(bookingId).catch(() => null);
-          if (r?.status === 'paid') {
-            clearInterval(t);
-            setPayUrl(null);
-            router.replace({ pathname: '/booking/finding', params: { id: bookingId } });
-          }
-        }, 2500);
-        pollRef.current = t;
+      if (isWeb) {
+        window.location.assign(launchUrl);
         return;
       }
       // Native: open the gateway in an in-app browser screen.
@@ -124,25 +114,6 @@ export default function Payment() {
         </View>
       </Modal>
 
-      {/* In-app secure card gateway (web) — embedded, no new tab */}
-      <Modal visible={!!payUrl} animationType="slide" onRequestClose={() => { if (pollRef.current) clearInterval(pollRef.current); setPayUrl(null); }}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
-          <View style={styles.payHead}>
-            <Pressable onPress={() => { if (pollRef.current) clearInterval(pollRef.current); setPayUrl(null); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Feather name="chevron-left" size={20} color={colors.textSecondary} />
-              <Text weight="semibold" color={colors.textSecondary}>Cancel</Text>
-            </Pressable>
-            <Text weight="bold" style={{ fontSize: 15 }}>Secure Payment</Text>
-            <View style={{ width: 60 }} />
-          </View>
-          {Platform.OS === 'web' && payUrl ? (
-            // @ts-ignore — DOM iframe on web
-            <iframe src={payUrl} style={{ border: 0, width: '100%', flex: 1 }} title="secure-payment" />
-          ) : (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.primary} /></View>
-          )}
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }

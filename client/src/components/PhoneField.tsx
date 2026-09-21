@@ -34,12 +34,16 @@ export function PhoneField({ value, onChangeText, placeholder = '3XX XXX XXXX', 
 /** Strip a leading +92 / 92 / 0 so only the local subscriber number remains. */
 export function toLocalPk(full?: string): string {
   if (!full) return '';
-  return full.replace(/\s+/g, '').replace(/^\+?92/, '').replace(/^0/, '');
+  return full.replace(/\s+/g, '').replace(/^\+?92/, '').replace(/^0+/, '');
 }
-/** Compose the stored E.164-ish value from the local part. */
+/**
+ * Compose the canonical E.164 value (+923XXXXXXXXX) from whatever was typed.
+ * One spelling only — "0323…", "323…" and "+92 323…" must reach the backend as
+ * the SAME number, or each variant creates a separate account.
+ */
 export function toFullPk(local: string): string {
-  const digits = local.replace(/\D/g, '').replace(/^0/, '');
-  return digits ? `+92 ${digits}` : '';
+  const digits = local.replace(/\D/g, '').replace(/^92/, '').replace(/^0+/, '');
+  return digits ? `+92${digits}` : '';
 }
 
 const styles = StyleSheet.create({

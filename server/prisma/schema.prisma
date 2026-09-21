@@ -10,7 +10,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -156,6 +156,11 @@ model Booking {
   rating        Int?
   review        String?
   invoiceNo     String?
+  // Job photos captured by the cleaner: "before" on arrival / when work starts,
+  // "after" before the job can be completed. Stored as JSON string arrays (not
+  // scalar lists) so the schema stays portable to SQLite.
+  beforePhotos  String?
+  afterPhotos   String?
   // Live location sharing (Yango-style): customer destination + cleaner live pos.
   custLat       Float?
   custLng       Float?

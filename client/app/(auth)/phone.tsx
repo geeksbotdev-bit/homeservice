@@ -3,12 +3,13 @@ import { View, StyleSheet, TextInput, ScrollView, Alert, Linking } from 'react-n
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { Text, Button, NavBar } from '../../src/components';
+import { Text, Button, NavBar, toFullPk } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { auth } from '../../src/services/api';
 import { setAuthToken, setUserRole } from '../../src/services/client';
 import { signInWithGoogle } from '../../src/services/firebaseAuth';
 import { isFirebaseConfigured } from '../../src/services/firebase';
+import { showToast } from '../../src/store/toast';
 
 export default function PhoneAuth() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function PhoneAuth() {
   async function sendCode() {
     if (!valid) return;
     setLoading(true);
-    const e164 = '+92' + phone.replace(/\s/g, '');
+    const e164 = toFullPk(phone);
     try {
       // Backend OTP: real code, verified server-side (expiry + attempts + single-use).
       // In dev (no SMS gateway) the code comes back as devCode so signup is testable.
@@ -43,11 +44,22 @@ export default function PhoneAuth() {
       // Exchange the Firebase ID token for an app session token so the
       // backend (/me, /bookings, …) recognises us.
       const idToken = user ? await user.getIdToken() : '';
-      const res = await auth.google(idToken, user?.displayName ?? undefined, user?.email ?? undefined);
+      // Signup passes the chosen role so the account is created as a cleaner;
+      // login sends none, so an existing account keeps the role it has.
+      const wantRole = isLogin ? undefined : (role === 'professional' ? 'professional' : 'client');
+      const res = await auth.google(idToken, user?.displayName ?? undefined, user?.email ?? undefined, wantRole);
       setAuthToken(res.token);
+      // The SERVER's role is the truth — persisting anything else means the
+      // session looks right until the next refresh.
       setUserRole(res.user?.role ?? 'client');
       const pro = res.user?.role === 'pro' || res.user?.role === 'professional';
-      if (res.isNew && !res.user?.name) router.replace({ pathname: '/(auth)/register', params: { role } });
+      if (!res.isNew && wantRole && (wantRole === 'professional') !== pro) {
+        showToast(
+          'Signed in to your existing account',
+          pro ? 'This account is registered as a cleaner' : 'This account is registered as a customer',
+        );
+      }
+      if (!res.user?.name) router.replace({ pathname: '/(auth)/register', params: { role: pro ? 'professional' : 'client' } });
       else router.replace(pro ? '/(pro)' : '/(tabs)');
     } catch (e: any) {
       Alert.alert('Google sign-in', e?.message ?? 'Could not sign in with Google.');

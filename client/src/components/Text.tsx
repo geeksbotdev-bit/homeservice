@@ -1,5 +1,7 @@
+import { Children } from 'react';
 import { Text as RNText, TextProps, StyleSheet } from 'react-native';
 import { colors, fonts } from '../theme/theme';
+import { useLang } from '../store/lang';
 
 type Variant =
   | 'display' | 'h1' | 'h2' | 'h3'
@@ -12,10 +14,23 @@ interface Props extends TextProps {
   weight?: Weight;
   color?: string;
   center?: boolean;
+  /** Opt out of translation (names, amounts, anything user-generated). */
+  noTranslate?: boolean;
 }
 
-/** App-wide Text — always uses Plus Jakarta Sans. */
-export function Text({ variant = 'body', weight, color, center, style, ...rest }: Props) {
+/**
+ * App-wide Text — always uses Plus Jakarta Sans, and translates itself.
+ *
+ * The English copy written in the JSX is the dictionary key, so switching the
+ * language re-renders the WHOLE app (every button, title and label goes
+ * through here). Strings that aren't in the dictionary — names, prices, dates,
+ * anything typed by a user — simply render unchanged.
+ */
+export function Text({ variant = 'body', weight, color, center, style, noTranslate, children, ...rest }: Props) {
+  const { t } = useLang();
+  const tr = (node: React.ReactNode): React.ReactNode =>
+    typeof node === 'string' ? t(node) : node;
+
   return (
     <RNText
       {...rest}
@@ -26,7 +41,9 @@ export function Text({ variant = 'body', weight, color, center, style, ...rest }
         center ? { textAlign: 'center' } : null,
         style,
       ]}
-    />
+    >
+      {noTranslate ? children : Children.map(children, tr)}
+    </RNText>
   );
 }
 
