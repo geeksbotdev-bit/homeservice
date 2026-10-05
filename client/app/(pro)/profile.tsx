@@ -91,6 +91,8 @@ export default function ProProfile() {
             // Cleaners pick their language here too — same screen the customer uses.
             { icon: 'globe', label: `${t('Language')} · ${langNative}`, onPress: () => router.push('/language') },
             { icon: 'help-circle', label: 'Help & Support', onPress: () => Linking.openURL('https://wa.me/923001234567') },
+            { icon: 'file-text', label: 'Terms & Conditions', onPress: () => Linking.openURL('https://withurooj.com/terms') },
+            { icon: 'shield', label: 'Privacy Policy', onPress: () => Linking.openURL('https://withurooj.com/privacy') },
           ].map((item, i, arr) => (
             <Pressable key={item.label} style={[styles.row, i < arr.length - 1 && styles.divider]} onPress={item.onPress}>
               <Feather name={item.icon as any} size={18} color={colors.textSecondary} />

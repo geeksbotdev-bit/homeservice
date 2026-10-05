@@ -113,7 +113,11 @@ export default function Profile() {
             { icon: 'bell', label: t('Notifications'), onPress: () => router.push('/notifications') },
             { icon: 'globe', label: `${t('Language')} · ${langNative}`, onPress: () => router.push('/language') },
             { icon: 'help-circle', label: t('Help & Support'), onPress: () => Linking.openURL('https://wa.me/923001234567') },
-            { icon: 'file-text', label: t('Terms & Privacy'), onPress: () => Linking.openURL('https://withurooj.com/terms') },
+            // The acquiring bank requires these to be reachable from the app
+            // itself, not only from the website.
+            { icon: 'rotate-ccw', label: t('Cancellation & Refund Policy'), onPress: () => Linking.openURL('https://withurooj.com/refund-policy') },
+            { icon: 'file-text', label: t('Terms & Conditions'), onPress: () => Linking.openURL('https://withurooj.com/terms') },
+            { icon: 'shield', label: t('Privacy Policy'), onPress: () => Linking.openURL('https://withurooj.com/privacy') },
           ].map((item, i, arr) => (
             <Pressable key={item.label} style={[styles.settingRow, i < arr.length - 1 && styles.divider]} onPress={item.onPress}>
               <Feather name={item.icon as any} size={18} color={colors.textSecondary} />

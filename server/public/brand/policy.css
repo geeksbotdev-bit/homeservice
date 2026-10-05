@@ -1,0 +1,88 @@
+/* Shared styling for the legal / policy pages (Terms, Privacy, Refunds).
+   Same design tokens as the landing page and the app. */
+:root{
+  --primary:#0B7C82; --primary-50:#E6F4F5; --primary-200:#B3DFE2; --primary-700:#065A5E; --primary-900:#03383B;
+  --accent:#F39C12; --accent-50:#FEF3DC; --success:#059669; --success-bg:#D1FAE5; --error:#DC2626; --error-bg:#FEF2F2;
+  --text:#111827; --text-2:#374151; --text-3:#6B7280; --text-4:#9CA3AF;
+  --border:#E5E7EB; --surface:#F3F4F6; --surface-alt:#F8FAFA; --white:#fff;
+  --r-md:8px; --r-lg:12px; --r-xl:16px; --r-pill:999px;
+  --sh-soft:0 1px 4px rgba(0,0,0,.06); --sh-card:0 2px 12px rgba(0,0,0,.08);
+  --gutter:clamp(16px,4vw,24px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  margin:0;background:var(--surface-alt);color:var(--text-2);
+  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  font-size:16px;line-height:1.72;-webkit-font-smoothing:antialiased;overflow-x:clip;
+}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+img{display:block;max-width:100%}
+:focus-visible{outline:3px solid var(--primary);outline-offset:3px;border-radius:6px}
+
+.bar{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.bar .in{
+  max-width:860px;margin-inline:auto;padding:14px var(--gutter);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.bar img{height:30px;width:auto}
+.bar .back{margin-left:auto;font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+
+main{max-width:860px;margin-inline:auto;padding:clamp(28px,5vw,56px) var(--gutter) 72px}
+.doc{background:#fff;border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--sh-soft);padding:clamp(22px,4vw,48px)}
+.kicker{
+  display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--primary);
+}
+.kicker::before{content:"";width:18px;height:2px;border-radius:2px;background:var(--accent)}
+h1{font-size:clamp(26px,4.4vw,38px);line-height:1.14;letter-spacing:-.03em;font-weight:800;color:var(--text);margin:14px 0 10px}
+h2{font-size:clamp(18px,2.4vw,22px);line-height:1.3;letter-spacing:-.02em;font-weight:800;color:var(--text);margin:36px 0 10px;scroll-margin-top:84px}
+h3{font-size:16px;font-weight:700;color:var(--text);margin:22px 0 6px}
+p{margin:0 0 14px}
+ul,ol{margin:0 0 14px;padding-left:22px}
+li{margin-bottom:8px}
+.updated{font-size:13.5px;color:var(--text-3);margin-bottom:4px}
+hr{border:0;border-top:1px solid var(--border);margin:34px 0}
+
+/* In-page contents */
+.toc{background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;margin:26px 0 8px}
+.toc b{display:block;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
+.toc ol{margin:0;padding-left:20px;columns:2;column-gap:28px}
+@media (max-width:620px){.toc ol{columns:1}}
+.toc li{margin-bottom:6px;font-size:14.5px}
+
+/* Callouts */
+.note{display:flex;gap:12px;border-radius:var(--r-lg);padding:15px 16px;margin:18px 0;font-size:14.5px;line-height:1.62}
+.note svg{width:19px;height:19px;flex:none;margin-top:3px}
+.note.info{background:var(--primary-50);color:var(--primary-700)}
+.note.warn{background:var(--error-bg);color:#991B1B}
+.note.ok{background:var(--success-bg);color:#065F46}
+
+/* Key/value business details */
+.kv{display:grid;gap:0;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin:18px 0}
+.kv div{display:grid;grid-template-columns:1fr;gap:2px;padding:13px 16px;border-bottom:1px solid var(--border)}
+.kv div:last-child{border-bottom:0}
+@media (min-width:560px){.kv div{grid-template-columns:210px 1fr;gap:16px;align-items:baseline}}
+.kv dt,.kv .k{font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3);margin:0}
+.kv dd,.kv .v{margin:0;font-size:15px;color:var(--text);font-weight:600}
+
+/* Fee / refund table */
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);background:var(--surface-alt);font-weight:700}
+td strong{color:var(--text)}
+@media (max-width:560px){
+  table,thead,tbody,tr,th,td{display:block;width:100%}
+  thead{display:none}
+  tr{border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:12px;padding:4px 0}
+  td{border-bottom:1px solid var(--border)}
+  tr td:last-child{border-bottom:0}
+  td::before{content:attr(data-l);display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);font-weight:700;margin-bottom:3px}
+}
+
+footer{border-top:1px solid var(--border);background:#fff}
+footer .in{max-width:860px;margin-inline:auto;padding:26px var(--gutter);font-size:13.5px;color:var(--text-3);display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+footer a{font-weight:600}
+footer .sep{margin-left:auto}

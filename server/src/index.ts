@@ -1268,6 +1268,23 @@ app.delete('/admin/cleaners/:id', requireAdmin, wrap(async (req, res) => {
 }));
 
 // Serve the admin portal (single-page dashboard). cwd = server/ under tsx (ESM).
+// ─── Public website (marketing + the policies the acquiring bank requires) ──
+const page = (file: string) => (_req: express.Request, res: express.Response) => {
+  res.set('Cache-Control', 'no-store, must-revalidate');
+  res.sendFile(path.join(process.cwd(), 'public', file));
+};
+
+app.get('/', page('index.html'));
+app.get('/terms', page('terms.html'));
+app.get('/privacy', page('privacy.html'));
+// Both spellings work, so printed/linked material can use either.
+app.get('/refund-policy', page('refunds.html'));
+app.get('/refunds', page('refunds.html'));
+app.get('/contact', (_req, res) => res.redirect('/#contact'));
+
+// Logo, icons and the shared policy stylesheet.
+app.use('/brand', express.static(path.join(process.cwd(), 'public', 'brand'), { maxAge: '1h' }));
+
 // The admin panel is a single static page. Never let a browser keep an old
 // copy — a cached build silently hides newly added columns and actions.
 app.get('/admin', (_req, res) => {
