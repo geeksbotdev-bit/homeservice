@@ -12,7 +12,8 @@
     "vercel-build": "prisma generate && prisma db push --accept-data-loss && tsx prisma/seed.ts",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
-    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts"
+    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
+    "db:local": "node prisma/local-schema.mjs && prisma db push --schema prisma/schema.local.prisma && prisma generate --schema prisma/schema.local.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",

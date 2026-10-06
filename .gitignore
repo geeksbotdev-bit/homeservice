@@ -48,3 +48,6 @@ Thumbs.db
 # Neon/agent skills tooling
 .claude/skills/
 skills-lock.json
+
+# generated local-only Prisma schema (see prisma/local-schema.mjs)
+server/prisma/schema.local.prisma

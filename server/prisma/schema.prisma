@@ -1,5 +1,9 @@
 // HomeService backend schema.
-// DEV: sqlite. PROD: change provider to "postgresql" and set DATABASE_URL.
+// This file is the PRODUCTION schema and must stay on postgresql — Vercel's
+// DATABASE_URL is a Postgres connection string, and `prisma db push` fails the
+// deploy if the provider does not match.
+// For local work run `npm run db:local`, which writes schema.local.prisma with
+// the sqlite provider and generates the client from that instead.
 // Kept portable: no enums / no scalar-arrays (status etc. are Strings;
 // list data is stored as JSON strings) so the same schema works on both.
 
@@ -10,7 +14,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
