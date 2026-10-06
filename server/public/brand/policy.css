@@ -27,7 +27,7 @@ img{display:block;max-width:100%}
   max-width:860px;margin-inline:auto;padding:14px var(--gutter);
   display:flex;align-items:center;gap:14px;flex-wrap:wrap;
 }
-.bar img{height:30px;width:auto}
+.bar img{height:22px;width:auto}
 .bar .back{margin-left:auto;font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
 
 main{max-width:860px;margin-inline:auto;padding:clamp(28px,5vw,56px) var(--gutter) 72px}

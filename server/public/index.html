@@ -126,15 +126,15 @@ header{
   border-bottom:1px solid transparent;transition:border-color .2s ease,box-shadow .2s ease;
 }
 header.stuck{border-bottom-color:var(--border);box-shadow:0 1px 14px rgba(0,0,0,.05)}
-.nav{display:flex;align-items:center;gap:18px;height:80px}
+.nav{display:flex;align-items:center;gap:18px;height:62px}
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:16.5px;letter-spacing:-.02em}
-.brand img{height:46px;width:auto}
-footer .brand img{height:54px;filter:brightness(0) invert(1)}
+.brand img{height:22px;width:auto}
+footer .brand img{height:28px;filter:brightness(0) invert(1)}
 .mark{
   width:32px;height:32px;border-radius:9px;background:var(--accent);color:#fff;
   display:grid;place-items:center;font-size:13px;font-weight:800;flex:none;
 }
-@media (max-width:359px){.brand img{height:36px}}
+@media (max-width:359px){.brand img{height:19px}}
 .nav-links{display:none;gap:28px;margin-inline:auto}
 .nav-links a{font-size:14.5px;font-weight:600;color:var(--text-2);position:relative;padding-block:6px}
 .nav-links a::after{
@@ -153,7 +153,7 @@ footer .brand img{height:54px;filter:brightness(0) invert(1)}
 }
 /* Smallest phones (320px): keep the bar on one line without crowding. */
 @media (max-width:359px){
-  .nav{height:70px;gap:10px}
+  .nav{height:58px;gap:10px}
   .brand{font-size:15px;gap:7px}
   .mark{width:29px;height:29px;font-size:12px}
   .nav-cta .btn{height:38px;padding-inline:13px;font-size:13px}
@@ -449,7 +449,15 @@ footer p{font-size:13.5px;line-height:1.65;max-width:34ch}
 .f-links{display:grid;gap:10px}
 .f-links a{font-size:14px}
 .f-links a:hover{color:var(--accent)}
-.f-addr{font-style:normal;font-size:13.5px;line-height:1.75;margin-top:14px;color:rgba(255,255,255,.72)}
+.f-addr{font-style:normal;font-size:13.5px;line-height:1.8;margin-top:14px;color:rgba(255,255,255,.72)}
+.f-lbl{display:inline-block;min-width:92px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.42);font-weight:700}
+.f-merchant{
+  margin-top:clamp(26px,3.4vw,40px);padding-top:24px;border-top:1px solid rgba(255,255,255,.1);
+  display:grid;gap:18px 28px;grid-template-columns:1fr;font-size:13px;line-height:1.65;
+}
+@media (min-width:680px){.f-merchant{grid-template-columns:repeat(2,1fr)}}
+@media (min-width:1020px){.f-merchant{grid-template-columns:repeat(4,1fr)}}
+.f-merchant .f-lbl{display:block;min-width:0;margin-bottom:5px;color:rgba(255,255,255,.55)}
 .f-addr strong{color:#fff}
 .f-addr a{color:rgba(255,255,255,.72)}
 .f-addr a:hover{color:var(--accent)}
@@ -462,7 +470,7 @@ footer p{font-size:13.5px;line-height:1.65;max-width:34ch}
 .biz b{font-size:14.5px;color:var(--text);font-weight:700}
 @media (min-width:620px){.biz > div{grid-template-columns:230px 1fr;gap:16px;align-items:baseline}}
 .f-bottom{
-  margin-top:clamp(30px,4vw,48px);padding-top:22px;border-top:1px solid rgba(255,255,255,.1);
+  margin-top:26px;padding-top:20px;border-top:1px solid rgba(255,255,255,.1);
   display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;font-size:12.5px;
 }
 .f-social{display:flex;gap:9px}
@@ -572,7 +580,7 @@ footer p{font-size:13.5px;line-height:1.65;max-width:34ch}
 
 /* Nav shrinks a touch once the page scrolls */
 .nav{transition:height .25s ease}
-header.stuck .nav{height:70px}
+header.stuck .nav{height:58px}
 
 /* FAQ answers slide open */
 @keyframes faqIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
@@ -591,7 +599,7 @@ details[open] p{animation:faqIn .26s ease-out}
   .step-n{transform:none;transition:none}
   .card-hover:hover .ico,.svc-card:hover .svc-top svg,.btn:hover svg,.ba:hover .ba-shot.after .ba-scene{transform:none}
   details[open] p{animation:none}
-  header.stuck .nav{height:80px}
+  header.stuck .nav{height:64px}
 }
 </style>
 </head>
@@ -1190,10 +1198,13 @@ details[open] p{animation:faqIn .26s ease-out}
         <div class="brand"><img src="/brand/logo-wordmark.png" alt="uroojwithus" width="190" height="38" /></div>
         <p>Verified home cleaning across Pakistan. Book in seconds, track live, and see the proof of every job.</p>
         <address class="f-addr">
+          <span class="f-lbl">Legal name</span>
           <strong>«REGISTERED BUSINESS NAME»</strong><br />
-          trading as uroojwithus<br />
+          <span class="f-lbl">Trading as</span> uroojwithus · withurooj.com<br />
+          <span class="f-lbl">Registered address</span>
           «FULL REGISTERED ADDRESS, CITY, PAKISTAN»<br />
-          <a href="tel:+92XXXXXXXXX">«+92 XX XXXXXXX»</a> · <a href="mailto:support@withurooj.com">«support@withurooj.com»</a>
+          <span class="f-lbl">Phone</span> <a href="tel:+92XXXXXXXXX">«+92 XX XXXXXXX»</a><br />
+          <span class="f-lbl">Email</span> <a href="mailto:support@withurooj.com">«support@withurooj.com»</a>
         </address>
         <div class="f-social" style="margin-top:18px">
           <a href="#top" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H8v3h2v7h3v-7h3l1-3h-4v-2c0-.6.4-1 1-1z"/></svg></a>
@@ -1229,9 +1240,28 @@ details[open] p{animation:faqIn .26s ease-out}
         </div>
       </div>
     </div>
+    <!-- Merchant information the acquiring bank asks to see on the site -->
+    <div class="f-merchant">
+      <div>
+        <span class="f-lbl">Nature of business</span>
+        Home cleaning services performed at the customer's address. No physical goods are shipped.
+      </div>
+      <div>
+        <span class="f-lbl">Pricing &amp; currency</span>
+        All prices are quoted and charged in Pakistani Rupees (PKR), inclusive of the itemised 5% platform fee.
+      </div>
+      <div>
+        <span class="f-lbl">Payment methods</span>
+        Visa and Mastercard, processed through Bank Alfalah's 3-D Secure gateway. Card details are never stored by us.
+      </div>
+      <div>
+        <span class="f-lbl">Prohibited items</span>
+        We sell cleaning services only. No illegal, restricted, age-gated or regulated goods are offered or sold here.
+      </div>
+    </div>
     <div class="f-bottom">
-      <span>© <span id="yr">2026</span> «REGISTERED BUSINESS NAME» · trading as uroojwithus · Pakistan. All prices in PKR.</span>
-      <span>Payments secured by Bank Alfalah 3-D Secure</span>
+      <span>© <span id="yr">2026</span> «REGISTERED BUSINESS NAME» · trading as uroojwithus · Pakistan</span>
+      <span><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refund-policy">Cancellation &amp; Refunds</a></span>
     </div>
   </div>
 </footer>

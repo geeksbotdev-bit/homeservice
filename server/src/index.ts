@@ -1105,10 +1105,91 @@ app.get('/admin/overview', requireAdmin, wrap(async (_req, res) => {
     prisma.booking.count({ where: { status: { in: ['confirmed', 'on_the_way', 'arrived', 'in_progress'] } } }),
     prisma.booking.findMany({ include: bookingInclude, orderBy: { createdAt: 'desc' }, take: 8 }),
   ]);
+  // 30-day trend, status split and per-service totals — the admin panel charts
+  // these instead of showing a bare number with no context.
+  const DAYS = 30;
+  const since = new Date(Date.now() - (DAYS - 1) * 864e5);
+  since.setHours(0, 0, 0, 0);
+  const [recentAll, paidRows, statusRows, pendingVerif, unassigned] = await Promise.all([
+    prisma.booking.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true, serviceName: true, total: true } }),
+    prisma.payment.findMany({ where: { status: 'paid', createdAt: { gte: since } }, select: { createdAt: true, amount: true, method: true } }),
+    prisma.booking.groupBy({ by: ['status'], _count: { _all: true } }),
+    prisma.cleaner.count({ where: { verifStatus: 'pending' } }),
+    prisma.booking.count({ where: { cleanerId: null, status: { not: 'cancelled' } } }),
+  ]);
+
+  const key = (d: Date) => new Date(d).toISOString().slice(0, 10);
+  const days: { date: string; revenue: number; bookings: number }[] = [];
+  for (let i = DAYS - 1; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 864e5);
+    days.push({ date: key(d), revenue: 0, bookings: 0 });
+  }
+  const byDate = new Map(days.map((d) => [d.date, d]));
+  for (const b of recentAll) byDate.get(key(b.createdAt))!.bookings++;
+  for (const p of paidRows) { const d = byDate.get(key(p.createdAt)); if (d) d.revenue += p.amount; }
+
+  const svcMap = new Map<string, { name: string; count: number; value: number }>();
+  for (const b of recentAll) {
+    const row = svcMap.get(b.serviceName) ?? { name: b.serviceName, count: 0, value: 0 };
+    row.count++; row.value += b.total; svcMap.set(b.serviceName, row);
+  }
+  const methods = new Map<string, { method: string; count: number; amount: number }>();
+  for (const p of paidRows) {
+    const row = methods.get(p.method) ?? { method: p.method, count: 0, amount: 0 };
+    row.count++; row.amount += p.amount; methods.set(p.method, row);
+  }
+
   ok(res, {
     customers, cleaners, bookings, services, completed, active,
     revenue: paidAgg._sum.amount ?? 0,
+    pendingVerif, unassigned,
+    series: days,
+    statusCounts: statusRows.map((r) => ({ status: r.status, count: r._count._all })).sort((a, b) => b.count - a.count),
+    topServices: [...svcMap.values()].sort((a, b) => b.value - a.value),
+    methods: [...methods.values()].sort((a, b) => b.amount - a.amount),
     recent: recent.map((b) => ({ ...serializeBooking(b), createdAt: b.createdAt })),
+  });
+}));
+
+// Everything about one booking — the admin panel opens this in a detail drawer.
+app.get('/admin/bookings/:id', requireAdmin, wrap(async (req, res) => {
+  const b = await prisma.booking.findUnique({
+    where: { id: req.params.id },
+    include: { ...bookingInclude, user: { include: { addresses: true } } },
+  });
+  if (!b) throw httpError(404, 'Booking not found');
+  const messages = await prisma.message.count({ where: { bookingId: b.id } });
+  ok(res, {
+    ...serializeBooking(b),
+    createdAt: b.createdAt,
+    quantity: b.quantity,
+    review: b.review ?? null,
+    messages,
+    addOnsDetail: (b.addOns ?? []).map((a) => ({ name: a.name, price: a.price })),
+    customer: b.user ? {
+      id: b.user.id, name: b.user.name || '—', phone: b.user.phone || '—',
+      email: b.user.email || '—', location: b.user.location || '—',
+    } : null,
+  });
+}));
+
+// One cleaner, with their verification record, earnings and recent jobs.
+app.get('/admin/cleaners/:id', requireAdmin, wrap(async (req, res) => {
+  const c = await prisma.cleaner.findUnique({ where: { id: req.params.id }, include: { user: true } });
+  if (!c) throw httpError(404, 'Cleaner not found');
+  const jobs = await prisma.booking.findMany({
+    where: { cleanerId: c.id }, orderBy: { createdAt: 'desc' }, take: 10, include: bookingInclude,
+  });
+  const done = await prisma.booking.findMany({ where: { cleanerId: c.id, status: 'completed' }, select: { total: true, rating: true } });
+  const earned = done.reduce((s, j) => s + j.total, 0);
+  const rated = done.filter((j) => j.rating != null);
+  ok(res, {
+    ...serializeVerification(c),
+    bio: c.bio ?? null, available: c.available, rating: c.rating, distanceKm: c.distanceKm,
+    email: c.user?.email ?? null, joined: c.user?.createdAt ?? null,
+    completed: done.length, earned, withdrawn: c.withdrawn,
+    avgRating: rated.length ? Math.round((rated.reduce((s, j) => s + (j.rating ?? 0), 0) / rated.length) * 10) / 10 : null,
+    jobs: jobs.map((j) => ({ ...serializeBooking(j), createdAt: j.createdAt })),
   });
 }));
 
@@ -1160,8 +1241,26 @@ app.post('/admin/cleaners/:id/verify', requireAdmin, wrap(async (req, res) => {
 }));
 
 app.get('/admin/customers', requireAdmin, wrap(async (_req, res) => {
-  const list = await prisma.user.findMany({ where: { role: 'client' }, include: { _count: { select: { bookings: true } } }, orderBy: { createdAt: 'desc' } });
-  ok(res, list.map((u) => ({ id: u.id, name: u.name || '—', phone: u.phone || '—', email: u.email || '—', location: u.location || '—', bookings: u._count.bookings, joined: u.createdAt })));
+  const list = await prisma.user.findMany({
+    where: { role: 'client' },
+    include: {
+      _count: { select: { bookings: true, addresses: true } },
+      bookings: { select: { total: true, status: true, createdAt: true, payment: { select: { amount: true, status: true } } } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  ok(res, list.map((u) => {
+    const paid = u.bookings.filter((b) => b.payment?.status === 'paid');
+    const last = u.bookings.reduce<Date | null>((m, b) => (!m || b.createdAt > m ? b.createdAt : m), null);
+    return {
+      id: u.id, name: u.name || '—', phone: u.phone || '—', email: u.email || '—',
+      location: u.location || '—', bookings: u._count.bookings, addresses: u._count.addresses,
+      spend: paid.reduce((s, b) => s + (b.payment?.amount ?? 0), 0),
+      completed: u.bookings.filter((b) => b.status === 'completed').length,
+      cancelled: u.bookings.filter((b) => b.status === 'cancelled').length,
+      lastBooking: last, joined: u.createdAt,
+    };
+  }));
 }));
 
 app.get('/admin/services', requireAdmin, wrap(async (_req, res) => {
@@ -1213,7 +1312,13 @@ app.delete('/admin/services/:id', requireAdmin, wrap(async (req, res) => {
 
 app.get('/admin/payments', requireAdmin, wrap(async (_req, res) => {
   const list = await prisma.payment.findMany({ include: { booking: { include: { user: true } } }, orderBy: { createdAt: 'desc' } });
-  ok(res, list.map((p) => ({ id: p.id, amount: p.amount, method: p.method, status: p.status, txnId: p.txnId, service: p.booking?.serviceName ?? '—', customer: p.booking?.user?.name || p.booking?.user?.phone || '—', createdAt: p.createdAt })));
+  ok(res, list.map((p) => ({
+    id: p.id, bookingId: p.bookingId, amount: p.amount, method: p.method, status: p.status,
+    txnId: p.txnId, refundAmount: p.refundAmount ?? null, orderId: p.orderId ?? null,
+    service: p.booking?.serviceName ?? '—',
+    customer: p.booking?.user?.name || p.booking?.user?.phone || '—',
+    createdAt: p.createdAt,
+  })));
 }));
 
 // Admin cancels a booking → reflects live in the customer + cleaner apps.
