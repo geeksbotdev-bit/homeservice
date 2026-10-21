@@ -94,6 +94,8 @@ section{padding-block:var(--section-y);overflow-x:clip}
 .btn-light:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(0,0,0,.18)}
 .btn-outline-light{background:transparent;color:#fff;border-color:rgba(255,255,255,.45)}
 .btn-outline-light:hover{background:rgba(255,255,255,.12);border-color:#fff}
+.soon-btn{opacity:.6;cursor:default}
+.soon-btn:hover{background:transparent;border-color:rgba(255,255,255,.45);transform:none}
 @media (prefers-reduced-motion:reduce){.btn:hover{transform:none}}
 
 /* ── Chips, cards ───────────────────────────────────────────────────── */
@@ -636,6 +638,7 @@ details[open] p{animation:faqIn .26s ease-out}
       <a href="#proof">Job photos</a>
       <a href="#pricing">Pricing</a>
       <a href="#cleaners">For cleaners</a>
+      <a href="#download">Download</a>
     </nav>
     <div class="nav-cta">
       <a class="btn btn-ghost" href="#cleaners">Become a cleaner</a>
@@ -1247,16 +1250,22 @@ details[open] p{animation:faqIn .26s ease-out}
 <section id="download" aria-labelledby="cta-h">
   <div class="wrap">
     <div class="cta rv">
-      <h2 id="cta-h">Your weekend shouldn't be spent cleaning</h2>
-      <p>Book a verified cleaner in about a minute. Track them to your door, check the photos, and get on with your day.</p>
+      <h2 id="cta-h">Get the app, book in a minute</h2>
+      <p>Cleaning, pest control, water tanks, movers and more — from identity-verified professionals, tracked live, paid securely in PKR.</p>
       <div class="cta-btns">
-        <a class="btn btn-light" href="#top">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/></svg>
-          Book a service
+        <a class="btn btn-light" href="https://expo.dev/accounts/geeksbot/projects/homeservice-client/builds/b19164d5-a5b3-463c-966f-c5604b07fa58" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 19h16"/></svg>
+          Download for Android
         </a>
-        <a class="btn btn-outline-light" href="#cleaners">Work as a cleaner</a>
+        <span class="btn btn-outline-light soon-btn" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/></svg>
+          iPhone — coming soon
+        </span>
       </div>
-      <p class="cta-note">Free cancellation before your cleaner sets off · Supplies included · Pay securely in PKR</p>
+      <p class="cta-note">
+        Android installs outside the Play Store need “Install unknown apps” allowed for your browser —
+        your phone will prompt you. Free cancellation before your professional sets off · Pay securely in PKR.
+      </p>
     </div>
   </div>
 </section>
@@ -1303,6 +1312,7 @@ details[open] p{animation:faqIn .26s ease-out}
           <a href="#proof">Job photos</a>
           <a href="#cleaners">Become a cleaner</a>
           <a href="#faq">FAQ</a>
+          <a href="https://expo.dev/accounts/geeksbot/projects/homeservice-client/builds/b19164d5-a5b3-463c-966f-c5604b07fa58" target="_blank" rel="noopener">Download the app</a>
         </div>
       </div>
       <div>
