@@ -185,6 +185,11 @@ export const user = {
   update: (patch: { name?: string; email?: string; location?: string; phone?: string; avatarUrl?: string; gender?: string; dob?: string }) =>
     USE_MOCKS ? delay({ ok: true }) : request<User>('/me', { method: 'PATCH', body: patch }),
 
+  // DELETE /me — permanently delete the account and its personal data.
+  // Required in-app by both app stores (Apple 5.1.1(v) and Google Play).
+  deleteAccount: () =>
+    USE_MOCKS ? delay({ ok: true }) : request<{ ok: boolean }>('/me', { method: 'DELETE' }),
+
   // POST /me/role { role } — switch Customer ↔ Cleaner on the same account
   setRole: (role: 'client' | 'professional') =>
     USE_MOCKS ? delay({ ...USER, role } as User) : request<User>('/me/role', { method: 'POST', body: { role } }),

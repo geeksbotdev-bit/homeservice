@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>uroojwithus — Verified home cleaning, booked in 60 seconds</title>
+<title>WithUrooj — Verified home cleaning, booked in 60 seconds</title>
 <meta name="description" content="Book background-verified cleaners in Pakistan. Transparent PKR pricing, live tracking, before & after job photos, and secure Bank Alfalah payments." />
 <meta name="theme-color" content="#0B7C82" />
-<meta property="og:title" content="uroojwithus — Verified home cleaning, booked in 60 seconds" />
+<meta property="og:title" content="WithUrooj — Verified home cleaning, booked in 60 seconds" />
 <meta property="og:description" content="Background-verified cleaners, live tracking and before/after photos of every job. Pay securely in PKR." />
 <meta property="og:type" content="website" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -126,15 +126,15 @@ header{
   border-bottom:1px solid transparent;transition:border-color .2s ease,box-shadow .2s ease;
 }
 header.stuck{border-bottom-color:var(--border);box-shadow:0 1px 14px rgba(0,0,0,.05)}
-.nav{display:flex;align-items:center;gap:18px;height:62px}
+.nav{display:flex;align-items:center;gap:18px;height:76px}
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:16.5px;letter-spacing:-.02em}
-.brand img{height:22px;width:auto}
-footer .brand img{height:28px;filter:brightness(0) invert(1)}
+.brand img{height:46px;width:auto}
+footer .brand img{height:62px;background:#fff;border-radius:10px;padding:7px 10px}
 .mark{
   width:32px;height:32px;border-radius:9px;background:var(--accent);color:#fff;
   display:grid;place-items:center;font-size:13px;font-weight:800;flex:none;
 }
-@media (max-width:359px){.brand img{height:19px}}
+@media (max-width:359px){.brand img{height:36px}}
 .nav-links{display:none;gap:28px;margin-inline:auto}
 .nav-links a{font-size:14.5px;font-weight:600;color:var(--text-2);position:relative;padding-block:6px}
 .nav-links a::after{
@@ -153,7 +153,7 @@ footer .brand img{height:28px;filter:brightness(0) invert(1)}
 }
 /* Smallest phones (320px): keep the bar on one line without crowding. */
 @media (max-width:359px){
-  .nav{height:58px;gap:10px}
+  .nav{height:66px;gap:10px}
   .brand{font-size:15px;gap:7px}
   .mark{width:29px;height:29px;font-size:12px}
   .nav-cta .btn{height:38px;padding-inline:13px;font-size:13px}
@@ -291,6 +291,23 @@ footer .brand img{height:28px;filter:brightness(0) invert(1)}
 .svc-list{margin-top:14px;display:grid;gap:8px}
 .svc-list li{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--text-2)}
 .svc-list svg{width:16px;height:16px;color:var(--success);flex:none;margin-top:2px}
+
+/* Service catalogue cards */
+.svc-cat{display:flex;flex-direction:column}
+.svc-cat .h3{margin-top:14px}
+.svc-cat .small{margin-top:6px}
+.catlist{margin-top:13px;display:grid;gap:7px;flex:1}
+.catlist li{position:relative;padding-left:16px;font-size:13.5px;color:var(--text-2);line-height:1.5}
+.catlist li::before{content:"";position:absolute;left:0;top:8px;width:6px;height:6px;border-radius:50%;background:var(--primary-200)}
+.from{margin-top:15px;padding-top:13px;border-top:1px solid var(--border);font-size:13px;color:var(--text-3)}
+.from b{font-size:17px;color:var(--primary);letter-spacing:-.02em}
+.from span{font-size:12.5px}
+.soon{margin-top:clamp(16px,2.4vw,22px);display:grid;gap:18px;padding:clamp(20px,3vw,28px)}
+@media (min-width:820px){.soon{grid-template-columns:1fr 1.4fr;align-items:center}}
+.soonlist{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+@media (min-width:560px){.soonlist{grid-template-columns:repeat(3,1fr)}}
+.soonlist li{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-3);font-weight:600}
+.soonlist li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent-200);flex:none}
 
 /* Steps */
 .steps{counter-reset:step;display:grid;gap:clamp(16px,2.2vw,22px);grid-template-columns:1fr}
@@ -580,7 +597,7 @@ footer p{font-size:13.5px;line-height:1.65;max-width:34ch}
 
 /* Nav shrinks a touch once the page scrolls */
 .nav{transition:height .25s ease}
-header.stuck .nav{height:58px}
+header.stuck .nav{height:66px}
 
 /* FAQ answers slide open */
 @keyframes faqIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
@@ -610,8 +627,8 @@ details[open] p{animation:faqIn .26s ease-out}
 <!-- ══ Nav ══════════════════════════════════════════════════════════ -->
 <header id="top">
   <div class="wrap nav">
-    <a class="brand" href="#top" aria-label="uroojwithus home">
-      <img src="/brand/logo-wordmark.png" alt="uroojwithus" width="190" height="34" />
+    <a class="brand" href="#top" aria-label="WithUrooj home">
+      <img src="/brand/logo-wordmark.png" alt="WithUrooj" width="190" height="34" />
     </a>
     <nav class="nav-links" aria-label="Primary">
       <a href="#services">Services</a>
@@ -622,7 +639,7 @@ details[open] p{animation:faqIn .26s ease-out}
     </nav>
     <div class="nav-cta">
       <a class="btn btn-ghost" href="#cleaners">Become a cleaner</a>
-      <a class="btn btn-primary" href="#download">Book a clean</a>
+      <a class="btn btn-primary" href="#download">Book a service</a>
     </div>
   </div>
 </header>
@@ -633,35 +650,36 @@ details[open] p{animation:faqIn .26s ease-out}
 <section class="hero" aria-labelledby="hero-h">
   <div class="wrap hero-grid">
     <div class="rv">
-      <span class="eyebrow">Home cleaning · Pakistan</span>
-      <h1 class="display" id="hero-h">A spotless home,<br /><span class="hl">booked in 60 seconds</span></h1>
+      <span class="eyebrow">All services in one app · Karachi</span>
+      <h1 class="display" id="hero-h">All your daily services,<br /><span class="hl">booked in 60 seconds</span></h1>
       <p class="lead">
-        Background-verified cleaners at your door today. Watch them arrive live on the map,
-        see before &amp; after photos of every job, and pay securely in PKR — no haggling, no surprises.
+        Cleaning, pest control, water tanks, car detailing, movers and more — from identity-verified
+        professionals. Track them live on the map, see before &amp; after photos of the work, and pay
+        securely in Pakistani Rupees. No haggling, no surprises.
       </p>
       <div class="hero-cta">
         <a class="btn btn-primary" href="#download">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/></svg>
-          Book a clean
+          Book a service
         </a>
         <a class="btn btn-ghost" href="#how">See how it works</a>
       </div>
       <div class="hero-chips">
-        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> CNIC-verified cleaners</span>
+        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> CNIC-verified professionals</span>
         <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Same-day slots</span>
         <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></svg> Secure card payments</span>
       </div>
       <div class="rating-row">
         <span class="ico green" style="width:40px;height:40px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span>
         <p class="small" style="max-width:40ch">
-          <strong style="color:var(--text)">Every cleaner is identity-checked</strong> — CNIC and a live selfie, approved by our team before they can accept a single job.
+          <strong style="color:var(--text)">Every professional is identity-checked</strong> — CNIC and a live selfie, approved by our team before they can accept a single job.
         </p>
       </div>
     </div>
 
     <!-- Phone: the real app home screen, on its own -->
     <div class="phone-stage rv rv-zoom">
-      <div class="phone" role="img" aria-label="The uroojwithus app showing services and a live cleaner tracker">
+      <div class="phone" role="img" aria-label="The WithUrooj app showing services and a live cleaner tracker">
         <div class="screen">
           <span class="notch" aria-hidden="true"></span>
           <div class="app-top">
@@ -722,87 +740,196 @@ details[open] p{animation:faqIn .26s ease-out}
 <section id="services" aria-labelledby="svc-h">
   <div class="wrap">
     <div class="head center rv">
-      <span class="eyebrow">What we clean</span>
-      <h2 class="h2" id="svc-h">Three services. One fixed price each.</h2>
-      <p class="lead">Every job includes eco-friendly, fragrance-free supplies — safe around children and pets. Add extras at checkout whenever you need them.</p>
+      <span class="eyebrow">What we do</span>
+      <h2 class="h2" id="svc-h">All your daily services, in one app</h2>
+      <p class="lead">Every job is carried out by a background-verified professional. Prices are quoted in Pakistani Rupees (PKR) and shown in full — service, any extras and the 5% platform fee — before you pay.</p>
     </div>
 
     <div class="grid g3">
-      <article class="card svc-card card-hover rv">
-        <div class="svc-top shot shot-plain">
-          <img src="https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=760&amp;q=70&amp;auto=format&amp;fit=crop"
-               width="760" height="507" alt="A spotless tiled bathroom" loading="lazy" decoding="async" />
-          <span class="veil" style="background:linear-gradient(135deg,rgba(11,124,130,.78),rgba(29,184,194,.62))"></span>
-          <span class="svc-tag">QUICK</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 12h16"/><path d="M6 12V6a3 3 0 016 0"/><path d="M8 16v3M12 16v2M16 16v3"/></svg>
-        </div>
-        <div class="svc-in">
-          <h3 class="h3">Bathroom Cleaning</h3>
-          <p class="small">Tiles, fixtures, deep scrub</p>
-          <div class="svc-meta">
-            <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> 1–2 hrs</span>
-            <span class="pill">per bathroom</span>
-          </div>
-          <ul class="svc-list">
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Toilet scrub &amp; disinfection</li>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Tiles &amp; grout deep cleaning</li>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Mirror &amp; fixture polishing</li>
-          </ul>
-          <div class="svc-price"><b>PKR 1,200</b><span>per bathroom</span></div>
-        </div>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 10v10h14V10"/></svg></span>
+        <h3 class="h3">Home Cleaning</h3>
+        <p class="small">Priced per area, so you only pay for the rooms you book.</p>
+        <ul class="catlist">
+          <li>Bedroom · Lounge / TV lounge · Drawing room</li>
+          <li>Dining room · Kitchen · Bathroom</li>
+          <li>Balcony · Terrace · Roof</li>
+          <li>Parking area · Store room · Bed headboard</li>
+        </ul>
+        <div class="from">From <b>PKR 1,200</b> <span>per bathroom</span></div>
       </article>
 
-      <article class="card svc-card card-hover rv">
-        <div class="svc-top shot shot-plain">
-          <img src="https://images.unsplash.com/photo-1556911220-bff31c812dba?w=760&amp;q=70&amp;auto=format&amp;fit=crop"
-               width="760" height="507" alt="A clean, bright kitchen with a tidy hob and counters" loading="lazy" decoding="async" />
-          <span class="veil" style="background:linear-gradient(135deg,rgba(230,126,34,.80),rgba(243,156,18,.64))"></span>
-          <span class="svc-tag">POPULAR</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M6 3v6a6 6 0 0012 0V3"/><path d="M12 15v6"/></svg>
-        </div>
-        <div class="svc-in">
-          <h3 class="h3">Kitchen Cleaning</h3>
-          <p class="small">Stove, counter, sink, cabinets</p>
-          <div class="svc-meta">
-            <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> 2–3 hrs</span>
-            <span class="pill">per kitchen</span>
-          </div>
-          <ul class="svc-list">
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Stove &amp; hood degreasing</li>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Sink scrub &amp; sanitisation</li>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Cabinet front wipe-down</li>
-          </ul>
-          <div class="svc-price"><b>PKR 1,500</b><span>per kitchen</span></div>
-        </div>
+      <article class="card svc-cat card-hover rv">
+        <span class="ico amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11V8a2 2 0 012-2h12a2 2 0 012 2v3"/><path d="M2 11h20v6H2z"/><path d="M5 17v2M19 17v2"/></svg></span>
+        <h3 class="h3">Sofa Cleaning</h3>
+        <p class="small">Deep shampoo and extraction, charged by the seat or as a set.</p>
+        <ul class="catlist">
+          <li>Per seat</li>
+          <li>5, 6, 7 and 10 seater sets</li>
+          <li>Dewan cleaning</li>
+          <li>Sofa-cum-bed cleaning</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
       </article>
 
-      <article class="card svc-card card-hover rv">
-        <div class="svc-top shot shot-plain">
-          <img src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=760&amp;q=70&amp;auto=format&amp;fit=crop"
-               width="760" height="507" alt="A neatly made bed in a tidy bedroom" loading="lazy" decoding="async" />
-          <span class="veil" style="background:linear-gradient(135deg,rgba(124,58,237,.78),rgba(155,109,255,.60))"></span>
-          <span class="svc-tag">FULL HOME</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 10v10h14V10"/></svg>
-        </div>
-        <div class="svc-in">
-          <h3 class="h3">General Cleaning</h3>
-          <p class="small">All rooms, dusting, mopping</p>
-          <div class="svc-meta">
-            <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> 3–4 hrs</span>
-            <span class="pill">team of 2</span>
-          </div>
-          <ul class="svc-list">
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> All rooms dusted &amp; tidied</li>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Floor sweeping &amp; mopping</li>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Surface sanitisation</li>
-          </ul>
-          <div class="svc-price"><b>PKR 2,500</b><span>per home</span></div>
-        </div>
+      <article class="card svc-cat card-hover rv">
+        <span class="ico violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20V9a3 3 0 013-3h6a3 3 0 013 3v11"/><path d="M4 20h16"/><path d="M9 20v-4h6v4"/></svg></span>
+        <h3 class="h3">Chair Cleaning</h3>
+        <p class="small">Dining and office chairs, priced by the number of seats.</p>
+        <ul class="catlist">
+          <li>4 seats · 6 seats</li>
+          <li>8 seats · 10 seats</li>
+          <li>12 seats</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
       </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></span>
+        <h3 class="h3">Carpet &amp; Rug Cleaning</h3>
+        <p class="small">Lifted, washed and dried, or cleaned in place.</p>
+        <ul class="catlist">
+          <li>Rug cleaning</li>
+          <li>Carpet cleaning</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18"/><path d="M6 3v18M12 3v18M18 3v18"/></svg></span>
+        <h3 class="h3">Curtain &amp; Blind Cleaning</h3>
+        <p class="small">Taken down, cleaned and re-hung.</p>
+        <ul class="catlist">
+          <li>Curtain cleaning</li>
+          <li>Blind cleaning</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a2 2 0 012-2h14a2 2 0 012 2v6"/><path d="M3 18h18"/><path d="M6 10V7a2 2 0 012-2h8a2 2 0 012 2v3"/></svg></span>
+        <h3 class="h3">Bed &amp; Mattress Cleaning</h3>
+        <p class="small">Dust-mite and stain treatment, then dried.</p>
+        <ul class="catlist">
+          <li>Single mattress</li>
+          <li>Double mattress</li>
+          <li>Bed cleaning</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3.5 4 6 7 6 10a6 6 0 01-12 0c0-3 2.5-6 6-10z"/></svg></span>
+        <h3 class="h3">Water Tank Cleaning</h3>
+        <p class="small">Drained, scrubbed, disinfected and refilled.</p>
+        <ul class="catlist">
+          <li>Roof tank 3×5 ft to 5×5 ft</li>
+          <li>Roof tank 6×6 ft to 8×8 ft</li>
+          <li>Roof tank 9×9 ft to 12×12 ft</li>
+          <li>Ground tanks, all sizes</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2-5h14l2 5v4h-3"/><circle cx="7.5" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg></span>
+        <h3 class="h3">Car Detailing</h3>
+        <p class="small">Interior and exterior detailing at your home.</p>
+        <ul class="catlist">
+          <li>Hatchback · Sedan · Luxury sedan</li>
+          <li>Crossover · SUV · Minivan</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6"/></svg></span>
+        <h3 class="h3">Commercial Deep Cleaning</h3>
+        <p class="small">Out-of-hours cleaning for business premises.</p>
+        <ul class="catlist">
+          <li>Offices · Restaurants</li>
+          <li>Educational institutes</li>
+          <li>Hospitals · Salons</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></span>
+        <h3 class="h3">Solar Panel Cleaning</h3>
+        <p class="small">Dust and residue removed so output recovers.</p>
+        <ul class="catlist">
+          <li>Residential and commercial arrays</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span>
+        <h3 class="h3">Sanitization &amp; Disinfection</h3>
+        <p class="small">Fogging and surface disinfection for homes and offices.</p>
+        <ul class="catlist">
+          <li>Disinfection &amp; sanitization</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M8 7h8l1 4H7z"/><path d="M7 11c0 5 2 9 5 9s5-4 5-9"/></svg></span>
+        <h3 class="h3">Fumigation &amp; Pest Control</h3>
+        <p class="small">Treatment with a follow-up where the infestation needs it.</p>
+        <ul class="catlist">
+          <li>Termite spray · Cockroach spray</li>
+          <li>Ant spray · Bed bugs</li>
+          <li>Rat control</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="7" width="14" height="10" rx="2"/><path d="M15 10h4l3 3v4h-7"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg></span>
+        <h3 class="h3">Home Movers</h3>
+        <p class="small">Packing, loading and shifting for apartments and homes.</p>
+        <ul class="catlist">
+          <li>Apartment moves</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+      <article class="card svc-cat card-hover rv">
+        <span class="ico amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></span>
+        <h3 class="h3">Helpers</h3>
+        <p class="small">An extra pair of hands, booked by the job.</p>
+        <ul class="catlist">
+          <li>General helper services</li>
+        </ul>
+        <div class="from">Quoted in PKR before you pay</div>
+      </article>
+
+    </div>
+
+    <!-- Honest about what is not live yet, so the listing matches what can
+         actually be booked today. -->
+    <div class="card rv soon">
+      <div>
+        <span class="eyebrow">Coming soon</span>
+        <h3 class="h3" style="margin-top:10px">More services, onboarding now</h3>
+        <p class="small" style="margin-top:6px">These are not yet bookable. We are verifying professionals for each one and will switch them on as they pass our checks.</p>
+      </div>
+      <ul class="soonlist">
+        <li>AC repair &amp; maintenance</li>
+        <li>Plumbing</li>
+        <li>Electrical</li>
+        <li>Doctors &amp; nurses at home</li>
+        <li>Beautician</li>
+        <li>Car mechanic</li>
+        <li>Bike mechanic</li>
+        <li>Notary services</li>
+      </ul>
     </div>
   </div>
 </section>
-
 <!-- ══ 4. How it works ══════════════════════════════════════════════ -->
 <section id="how" style="background:var(--surface-alt)" aria-labelledby="how-h">
   <div class="wrap">
@@ -841,7 +968,7 @@ details[open] p{animation:faqIn .26s ease-out}
 <section id="why" aria-labelledby="why-h">
   <div class="wrap">
     <div class="head center rv">
-      <span class="eyebrow">Why uroojwithus</span>
+      <span class="eyebrow">Why WithUrooj</span>
       <h2 class="h2" id="why-h">Built for people who've been let down before</h2>
       <p class="lead">Every part of the app exists to answer one question: can I trust the person I'm letting into my home?</p>
     </div>
@@ -1125,7 +1252,7 @@ details[open] p{animation:faqIn .26s ease-out}
       <div class="cta-btns">
         <a class="btn btn-light" href="#top">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/></svg>
-          Book a clean
+          Book a service
         </a>
         <a class="btn btn-outline-light" href="#cleaners">Work as a cleaner</a>
       </div>
@@ -1141,16 +1268,18 @@ details[open] p{animation:faqIn .26s ease-out}
   <div class="wrap">
     <div class="f-grid">
       <div>
-        <div class="brand"><img src="/brand/logo-wordmark.png" alt="uroojwithus" width="190" height="38" /></div>
+        <div class="brand"><img src="/brand/logo-wordmark.png" alt="WithUrooj" width="190" height="38" /></div>
         <p>Verified home cleaning across Pakistan. Book in seconds, track live, and see the proof of every job.</p>
         <address class="f-addr">
           <span class="f-lbl">Legal name</span>
-          <strong>«REGISTERED BUSINESS NAME»</strong><br />
-          <span class="f-lbl">Trading as</span> uroojwithus · withurooj.com<br />
+          <strong>Al Urooj</strong><br />
+          <span class="f-lbl">Proprietor</span> Khushnudi Bano<br />
+          <span class="f-lbl">NTN</span> 4220180415054 (FBR, RTO-I Karachi)<br />
+          <span class="f-lbl">Trading as</span> WithUrooj · withurooj.com<br />
           <span class="f-lbl">Registered address</span>
-          «FULL REGISTERED ADDRESS, CITY, PAKISTAN»<br />
-          <span class="f-lbl">Phone</span> <a href="tel:+92XXXXXXXXX">«+92 XX XXXXXXX»</a><br />
-          <span class="f-lbl">Email</span> <a href="mailto:support@withurooj.com">«support@withurooj.com»</a>
+          House No. 28, Street No. 419/1, Malir, Karachi, Pakistan<br />
+          <span class="f-lbl">Phone</span> <a href="tel:+92XXXXXXXXX">+92 333 3276896</a><br />
+          <span class="f-lbl">Email</span> <a href="mailto:support@withurooj.com">support@withurooj.com</a>
         </address>
         <div class="f-social" style="margin-top:18px">
           <a href="#top" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H8v3h2v7h3v-7h3l1-3h-4v-2c0-.6.4-1 1-1z"/></svg></a>
@@ -1183,6 +1312,7 @@ details[open] p{animation:faqIn .26s ease-out}
           <a href="/terms">Terms &amp; Conditions</a>
           <a href="/privacy">Privacy Policy</a>
           <a href="/refund-policy">Cancellation &amp; Refund Policy</a>
+          <a href="/delete-account">Delete your account</a>
         </div>
       </div>
     </div>
@@ -1206,7 +1336,7 @@ details[open] p{animation:faqIn .26s ease-out}
       </div>
     </div>
     <div class="f-bottom">
-      <span>© <span id="yr">2026</span> «REGISTERED BUSINESS NAME» · trading as uroojwithus · Pakistan</span>
+      <span>© <span id="yr">2026</span> Al Urooj · trading as WithUrooj · Pakistan</span>
       <span><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refund-policy">Cancellation &amp; Refunds</a></span>
     </div>
   </div>

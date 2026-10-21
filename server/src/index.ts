@@ -244,6 +244,55 @@ const TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1
 
 // GET /availability?date=<dateLabel> -> which slots are open for that day.
 // A slot is locked once any active booking exists at that date+time.
+// ─── Routing (driving route for the live-tracking map) ───────────────
+// Proxied through us rather than called from the map itself: results are
+// cached, the provider can be swapped with one env var, and no key would ever
+// sit in client code. ROUTING_URL defaults to OSRM's public demo server, which
+// is rate-limited and NOT for production traffic — point it at a paid provider
+// (or a self-hosted OSRM) before launch.
+const ROUTING_URL = process.env.ROUTING_URL || 'https://router.project-osrm.org';
+const routeCache = new Map<string, { at: number; body: any }>();
+const ROUTE_TTL = 60_000;
+
+app.get('/route', wrap(async (req, res) => {
+  const parse = (s: unknown) => {
+    const [a, b] = String(s ?? '').split(',').map(Number);
+    return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a) <= 90 && Math.abs(b) <= 180 ? { lat: a, lng: b } : null;
+  };
+  const from = parse(req.query.from);
+  const to = parse(req.query.to);
+  if (!from || !to) throw httpError(400, 'from and to are required as "lat,lng"');
+
+  // Round to ~11 m so a cleaner edging forward reuses the cached route.
+  const key = [from.lat, from.lng, to.lat, to.lng].map((n) => n.toFixed(4)).join(',');
+  const hit = routeCache.get(key);
+  if (hit && Date.now() - hit.at < ROUTE_TTL) return ok(res, hit.body);
+
+  const url = `${ROUTING_URL}/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try {
+    const r = await fetch(url, { signal: controller.signal });
+    const j: any = await r.json();
+    const route = j?.routes?.[0];
+    if (!route) throw new Error('no route');
+    const body = {
+      // [lat, lng] pairs, ready for Leaflet
+      coords: (route.geometry?.coordinates ?? []).map((p: [number, number]) => [p[1], p[0]]),
+      distance: Math.round(route.distance ?? 0),      // metres
+      duration: Math.round(route.duration ?? 0),      // seconds
+    };
+    routeCache.set(key, { at: Date.now(), body });
+    if (routeCache.size > 500) routeCache.delete(routeCache.keys().next().value!);
+    ok(res, body);
+  } catch {
+    // The map falls back to a straight line when this fails.
+    ok(res, { coords: [], distance: 0, duration: 0, unavailable: true });
+  } finally {
+    clearTimeout(timer);
+  }
+}));
+
 app.get('/availability', wrap(async (req, res) => {
   const date = String(req.query.date ?? '');
   const booked = date
@@ -285,6 +334,46 @@ app.patch('/me', requireAuth, wrap(async (req, res) => {
     },
   });
   ok(res, serializeUser(await loadUser(req.userId!)));
+}));
+
+/**
+ * Delete the signed-in account and the personal data attached to it.
+ *
+ * Both app stores require this to be reachable from inside the app (Apple
+ * guideline 5.1.1(v); Google Play's account-deletion policy, which also wants a
+ * public web page — see /delete-account on the website).
+ *
+ * Cascades remove the user's bookings, messages, payments, addresses, payment
+ * methods, notifications, push tokens and favourites. A cleaner's profile is
+ * NOT cascaded (the relation is SetNull), so it is deleted explicitly —
+ * otherwise their CNIC images and selfie would be left behind.
+ */
+app.delete('/me', requireAuth, wrap(async (req, res) => {
+  const userId = req.userId!;
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw httpError(404, 'Account not found');
+
+  const cleaner = await prisma.cleaner.findFirst({ where: { userId } });
+  if (cleaner) {
+    // Release any job still assigned to them so the customer isn't left with a
+    // booking pointing at a cleaner who no longer exists.
+    const open = await prisma.booking.findMany({
+      where: { cleanerId: cleaner.id, status: { notIn: ['completed', 'cancelled'] } },
+      select: { id: true, userId: true, serviceName: true },
+    });
+    for (const b of open) {
+      await notify(b.userId, 'alert-circle', 'Your cleaner is no longer available',
+        `We are finding another professional for your ${b.serviceName}.`, { bookingId: b.id });
+    }
+    await prisma.booking.updateMany({ where: { cleanerId: cleaner.id }, data: { cleanerId: null, accepted: false } });
+    await prisma.favorite.deleteMany({ where: { cleanerId: cleaner.id } });
+    await prisma.cleaner.delete({ where: { id: cleaner.id } }); // removes CNIC + selfie
+  }
+
+  if (user.phone) await prisma.otp.deleteMany({ where: { phone: user.phone } }).catch(() => {});
+  await prisma.user.delete({ where: { id: userId } });
+
+  ok(res, { ok: true, deleted: true });
 }));
 
 // Switch the logged-in user's role (Customer ↔ Cleaner) on the same account.
@@ -1385,6 +1474,8 @@ app.get('/privacy', page('privacy.html'));
 // Both spellings work, so printed/linked material can use either.
 app.get('/refund-policy', page('refunds.html'));
 app.get('/refunds', page('refunds.html'));
+// Google Play requires a public account-deletion page, not only the in-app button.
+app.get('/delete-account', page('delete-account.html'));
 app.get('/contact', (_req, res) => res.redirect('/#contact'));
 
 // Logo, icons and the shared policy stylesheet.

@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome } from '@expo/vector-icons';
 import { Text, Card } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
-import { pro } from '../../src/services/api';
+import { pro, user as userApi } from '../../src/services/api';
 import { logout } from '../../src/services/session';
 import { useLang, LANGUAGES } from '../../src/store/lang';
 import type { Cleaner } from '../../src/data/types';
@@ -31,6 +31,34 @@ export default function ProProfile() {
     ]);
   }
   async function doLogout() { await logout(); router.replace('/(auth)/welcome'); }
+
+  // Account deletion — required in-app by Apple and Google Play. A cleaner's
+  // CNIC images and selfie go with it.
+  const [deleting, setDeleting] = useState(false);
+  function confirmDelete() {
+    const warning = 'This permanently deletes your cleaner account, your identity documents and your job history. It cannot be undone.';
+    if (Platform.OS === 'web') { if (typeof window !== 'undefined' && window.confirm(warning)) doDelete(); return; }
+    Alert.alert('Delete your account?', warning, [
+      { text: 'Keep my account', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => Alert.alert('Are you sure?', 'This is your last chance to cancel.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete for ever', style: 'destructive', onPress: doDelete },
+      ]) },
+    ]);
+  }
+  async function doDelete() {
+    setDeleting(true);
+    try {
+      await userApi.deleteAccount();
+      await logout();
+      router.replace('/(auth)/welcome');
+    } catch (e: any) {
+      setDeleting(false);
+      const msg = e?.message || 'Please try again, or contact support.';
+      if (Platform.OS === 'web') { if (typeof window !== 'undefined') window.alert(msg); }
+      else Alert.alert('Could not delete the account', msg);
+    }
+  }
 
   const online = me?.available ?? true;
 
@@ -107,6 +135,13 @@ export default function ProProfile() {
           <Text weight="bold" color={colors.error}>{t('Log Out')}</Text>
         </Pressable>
 
+        <Pressable style={styles.deleteRow} onPress={confirmDelete} disabled={deleting}>
+          <Feather name="trash-2" size={15} color={colors.textTertiary} />
+          <Text variant="bodySm" weight="semibold" color={colors.textTertiary}>
+            {deleting ? t('Deleting…') : t('Delete my account')}
+          </Text>
+        </Pressable>
+
         <Text center variant="bodySm" color={colors.textDisabled}>HomeService Pro v1.0 · Pakistan</Text>
       </ScrollView>
     </View>
@@ -133,5 +168,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
   divider: { borderBottomWidth: 1, borderBottomColor: colors.surface },
   switchRole: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.primary50, borderRadius: radius.lg, height: 52 },
+  deleteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 14 },
   logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.errorBg, borderRadius: radius.lg, height: 52 },
 });

@@ -86,6 +86,8 @@ const DICT: Record<string, { ur: string; roman: string }> = {
   'Get Started': { ur: 'شروع کریں', roman: 'Shuru karein' },
   'Log In': { ur: 'لاگ ان', roman: 'Log In' },
   'Log Out': { ur: 'لاگ آؤٹ', roman: 'Log Out' },
+  'Delete my account': { ur: 'میرا اکاؤنٹ ڈیلیٹ کریں', roman: 'Mera account delete karein' },
+  'Deleting…': { ur: 'ڈیلیٹ ہو رہا ہے…', roman: 'Delete ho raha hai…' },
   'Welcome back.': { ur: 'خوش آمدید۔', roman: 'Khush aamdeed.' },
   'Send Code': { ur: 'کوڈ بھیجیں', roman: 'Code bhejein' },
   'Sending...': { ur: 'بھیجا جا رہا ہے...', roman: 'Bhej rahe hain...' },

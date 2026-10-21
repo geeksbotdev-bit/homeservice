@@ -74,7 +74,7 @@ export default function RootLayout() {
   // Web: set the browser-tab title + a branded favicon (until the real logo).
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'uroojwithus';
+      document.title = 'WithUrooj';
       const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='#0B7C82'/><circle cx='50' cy='15' r='6' fill='#F39C12'/><text x='32' y='44' font-family='Arial,Helvetica,sans-serif' font-size='30' font-weight='800' fill='#ffffff' text-anchor='middle'>uw</text></svg>`;
       const href = 'data:image/svg+xml,' + encodeURIComponent(svg);
       document.querySelectorAll("link[rel~='icon']").forEach((l) => l.parentNode?.removeChild(l));

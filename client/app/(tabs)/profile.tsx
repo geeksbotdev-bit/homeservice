@@ -37,6 +37,38 @@ export default function Profile() {
   }
   async function doLogout() { await logout(); router.replace('/(auth)/welcome'); }
 
+  // Account deletion is required in-app by both app stores. It is permanent, so
+  // it asks twice before anything is removed.
+  const [deleting, setDeleting] = useState(false);
+  function confirmDelete() {
+    const warning = 'This permanently deletes your account, bookings, addresses and payment methods. It cannot be undone.';
+    if (Platform.OS === 'web') { if (typeof window !== 'undefined' && window.confirm(warning)) doDelete(); return; }
+    Alert.alert('Delete your account?', warning, [
+      { text: 'Keep my account', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => Alert.alert('Are you sure?', 'This is your last chance to cancel.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete for ever', style: 'destructive', onPress: doDelete },
+        ]),
+      },
+    ]);
+  }
+  async function doDelete() {
+    setDeleting(true);
+    try {
+      await userApi.deleteAccount();
+      await logout();
+      router.replace('/(auth)/welcome');
+    } catch (e: any) {
+      setDeleting(false);
+      const msg = e?.message || 'Please try again, or contact support.';
+      if (Platform.OS === 'web') { if (typeof window !== 'undefined') window.alert(msg); }
+      else Alert.alert('Could not delete the account', msg);
+    }
+  }
+
   return (
     <View style={styles.root}>
       <SafeAreaView edges={['top']} style={styles.header}>
@@ -132,6 +164,14 @@ export default function Profile() {
           <Text weight="bold" color={colors.error}>{t('Log Out')}</Text>
         </Pressable>
 
+        {/* Required in-app by both app stores — permanent, and clearly labelled. */}
+        <Pressable style={styles.deleteRow} onPress={confirmDelete} disabled={deleting}>
+          <Feather name="trash-2" size={15} color={colors.textTertiary} />
+          <Text variant="bodySm" weight="semibold" color={colors.textTertiary}>
+            {deleting ? t('Deleting…') : t('Delete my account')}
+          </Text>
+        </Pressable>
+
         <Text center variant="bodySm" color={colors.textDisabled}>HomeService v1.0 · Pakistan</Text>
       </ScrollView>
     </View>
@@ -206,5 +246,6 @@ const styles = StyleSheet.create({
   divider: { borderBottomWidth: 1, borderBottomColor: colors.surface },
   addrSearch: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: radius.lg, height: 46, paddingHorizontal: 14, marginBottom: 4 },
   switchRole: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.primary50, borderRadius: radius.lg, height: 52 },
+  deleteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 14 },
   logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.errorBg, borderRadius: radius.lg, height: 52 },
 });
