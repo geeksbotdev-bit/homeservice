@@ -628,30 +628,8 @@ details[open] p{animation:faqIn .26s ease-out}
   header.stuck .nav{height:64px}
 }
 
-/* Business details — the merchant identity the bank requires on the site */
-#business{background:var(--surface-alt)}
-.biz-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(14px,1.6vw,20px);margin-top:clamp(24px,3vw,36px)}
-.biz-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:clamp(20px,2.2vw,26px);box-shadow:var(--sh-soft);min-width:0;overflow-wrap:anywhere}
-.biz-ic{width:44px;height:44px;border-radius:12px;background:var(--primary-50);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
-.biz-ic svg{width:21px;height:21px}
-.biz-h3{font-size:1.02rem;font-weight:700;margin-bottom:14px}
-.biz-dl{display:grid;grid-template-columns:1fr;gap:0}
-.biz-dl dt{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin-top:12px}
-.biz-dl dt:first-child{margin-top:0}
-.biz-dl dd{font-size:.95rem;line-height:1.55;margin:3px 0 0}
-.biz-dl dd a{color:var(--primary);font-weight:600}
-.biz-sub{display:block;font-size:.78rem;color:var(--text-3);font-weight:500}
-.biz-pol{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 18px;margin-top:clamp(20px,2.4vw,28px);padding-top:18px;border-top:1px solid var(--border);font-size:.9rem;color:var(--text-3)}
-.biz-pol a{color:var(--primary);font-weight:600}
-@media (max-width:900px){.biz-grid{grid-template-columns:1fr 1fr}}
-@media (max-width:640px){.biz-grid{grid-template-columns:1fr}}
 
-.biz-terms{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2vw,26px);margin-top:clamp(20px,2.4vw,30px);
            padding-top:clamp(20px,2.4vw,28px);border-top:1px solid var(--line)}
-.biz-term h4{font-size:.95rem;font-weight:700;margin-bottom:7px}
-.biz-term p{font-size:.9rem;line-height:1.72;color:var(--muted)}
-.biz-term a{color:var(--brand);font-weight:600}
-@media (max-width:760px){.biz-terms{grid-template-columns:1fr}}
 </style>
 </head>
 
@@ -1279,63 +1257,6 @@ details[open] p{animation:faqIn .26s ease-out}
 </section>
 
 <!-- ══ 11. Final CTA ════════════════════════════════════════════════ -->
-<!-- ══ Business details ═════════════════════════════════ -->
-<section id="business" aria-labelledby="biz-h">
-  <div class="wrap">
-    <div class="head center rv">
-      <span class="eyebrow">About the business</span>
-      <h2 class="h2" id="biz-h">Registered business details</h2>
-      <p class="lead">WithUrooj is the trading name of Al Urooj. These are the business details and contacts behind every booking and payment.</p>
-    </div>
-
-    <div class="biz-grid">
-      <div class="biz-card rv">
-        <div class="biz-ic" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-5h6v5"/></svg>
-        </div>
-        <div class="biz-h3">Business identity</div>
-        <dl class="biz-dl">
-          <dt>Legal name</dt><dd><strong>Al Urooj</strong></dd>
-          <dt>Doing business as</dt><dd>WithUrooj</dd>
-          <dt>Business type</dt><dd>Home cleaning and related household services</dd>
-        </dl>
-      </div>
-
-      <div class="biz-card rv">
-        <div class="biz-ic" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1116 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        </div>
-        <div class="biz-h3">Contact us</div>
-        <dl class="biz-dl">
-          <dt>Business address</dt>
-          <dd>House No. 28, Street No. 419/1,<br />Malir, Karachi, Pakistan</dd>
-          <dt>Phone</dt><dd><a href="tel:+923333276896">+92 333 3276896</a></dd>
-          <dt>Email</dt><dd><a href="mailto:support@withurooj.com">support@withurooj.com</a></dd>
-        </dl>
-      </div>
-
-      <div class="biz-card rv">
-        <div class="biz-ic" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-        </div>
-        <div class="biz-h3">Pricing</div>
-        <dl class="biz-dl">
-          <dt>Currency</dt><dd>Pakistani Rupee (PKR)</dd>
-          <dt>How it is shown</dt><dd>Every price on this site and in the app is listed in PKR, in full, before you pay</dd>
-        </dl>
-      </div>
-    </div>
-
-    <div class="biz-pol rv">
-      <span>Our policies:</span>
-      <a href="/terms">Terms &amp; Conditions</a>
-      <a href="/privacy">Privacy Policy</a>
-      <a href="/refund-policy">Delivery, Refund, Return &amp; Cancellation Policy</a>
-      <a href="/delete-account">Delete your account</a>
-    </div>
-  </div>
-</section>
-
 <section id="download" aria-labelledby="cta-h">
   <div class="wrap">
     <div class="cta rv">
@@ -1368,6 +1289,16 @@ details[open] p{animation:faqIn .26s ease-out}
       <div>
         <div class="brand"><img src="/brand/logo-wordmark.png" alt="WithUrooj" width="190" height="38" /></div>
         <p>Verified home cleaning across Pakistan. Book in seconds, track live, and see the proof of every job.</p>
+
+        <address class="f-addr">
+          <strong>Al Urooj</strong><br />
+          <span class="f-lbl">Doing business as</span> WithUrooj<br />
+          <span class="f-lbl">Address</span>
+          House No. 28, Street No. 419/1,<br />Malir, Karachi, Pakistan<br />
+          <span class="f-lbl">Phone</span> <a href="tel:+923333276896">+92 333 3276896</a><br />
+          <span class="f-lbl">Email</span> <a href="mailto:support@withurooj.com">support@withurooj.com</a>
+        </address>
+
         <div class="f-social" style="margin-top:18px">
           <a href="#top" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H8v3h2v7h3v-7h3l1-3h-4v-2c0-.6.4-1 1-1z"/></svg></a>
           <a href="#top" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/></svg></a>
@@ -1396,7 +1327,7 @@ details[open] p{animation:faqIn .26s ease-out}
       <div>
         <div class="f-h">Legal &amp; support</div>
         <div class="f-links">
-          <a href="#business">Contact us</a>
+          <a href="#site-footer">Contact us</a>
           <a href="/terms">Terms &amp; Conditions</a>
           <a href="/privacy">Privacy Policy</a>
           <a href="/refund-policy">Delivery, Refund, Return &amp; Cancellation Policy</a>
