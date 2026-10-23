@@ -630,7 +630,7 @@ details[open] p{animation:faqIn .26s ease-out}
 
 /* Business details — the merchant identity the bank requires on the site */
 #business{background:var(--surface-alt)}
-.biz-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(14px,1.6vw,20px);margin-top:clamp(24px,3vw,36px)}
+.biz-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(14px,1.6vw,20px);margin-top:clamp(24px,3vw,36px)}
 .biz-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:clamp(20px,2.2vw,26px);box-shadow:var(--sh-soft);min-width:0;overflow-wrap:anywhere}
 .biz-ic{width:44px;height:44px;border-radius:12px;background:var(--primary-50);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
 .biz-ic svg{width:21px;height:21px}
@@ -643,8 +643,15 @@ details[open] p{animation:faqIn .26s ease-out}
 .biz-sub{display:block;font-size:.78rem;color:var(--text-3);font-weight:500}
 .biz-pol{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 18px;margin-top:clamp(20px,2.4vw,28px);padding-top:18px;border-top:1px solid var(--border);font-size:.9rem;color:var(--text-3)}
 .biz-pol a{color:var(--primary);font-weight:600}
-@media (max-width:900px){.biz-grid{grid-template-columns:1fr 1fr}}
+@media (max-width:1100px){.biz-grid{grid-template-columns:1fr 1fr}}
 @media (max-width:640px){.biz-grid{grid-template-columns:1fr}}
+
+.biz-terms{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2vw,26px);margin-top:clamp(20px,2.4vw,30px);
+           padding-top:clamp(20px,2.4vw,28px);border-top:1px solid var(--line)}
+.biz-term h4{font-size:.95rem;font-weight:700;margin-bottom:7px}
+.biz-term p{font-size:.9rem;line-height:1.72;color:var(--muted)}
+.biz-term a{color:var(--brand);font-weight:600}
+@media (max-width:760px){.biz-terms{grid-template-columns:1fr}}
 </style>
 </head>
 
@@ -1319,6 +1326,48 @@ details[open] p{animation:faqIn .26s ease-out}
           <dt>Email</dt><dd><a href="mailto:support@withurooj.com">support@withurooj.com</a></dd>
           <dt>Currency</dt><dd>Pakistani Rupee (PKR)</dd>
         </dl>
+      </div>
+      <div class="biz-card rv">
+        <div class="biz-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+        </div>
+        <div class="biz-h3">Payments &amp; security</div>
+        <dl class="biz-dl">
+          <dt>Cards accepted</dt><dd>Visa, Mastercard <span class="biz-sub">debit and credit</span></dd>
+          <dt>Processed by</dt><dd>Bank Alfalah <span class="biz-sub">3-D Secure on every transaction</span></dd>
+          <dt>Card storage</dt><dd>None — your card is entered on the bank's page, never on ours</dd>
+          <dt>Charged in</dt><dd>Pakistani Rupee (PKR) only</dd>
+        </dl>
+      </div>
+    </div>
+
+
+    <div class="biz-terms rv">
+      <div class="biz-term">
+        <h4>How the service is delivered</h4>
+        <p>WithUrooj is a service, not a shipped product — there is nothing to post. A verified professional
+        travels to the address you give at booking. Instant bookings are normally attended within about an
+        hour; scheduled bookings are attended at the date and time you choose. You can follow your
+        professional on a live map once they set off.</p>
+      </div>
+      <div class="biz-term">
+        <h4>Pricing</h4>
+        <p>Every price on this site and in the app is in Pakistani Rupees and includes applicable taxes. The
+        total is shown in full, with the service fee itemised, before you pay — nothing is added afterwards.
+        A receipt carrying our NTN is issued for every completed job.</p>
+      </div>
+      <div class="biz-term">
+        <h4>Cancellations &amp; refunds</h4>
+        <p>Cancel free of charge any time before your professional sets off. After that a 30% cancellation
+        fee applies and the remainder is refunded to the card you paid with, normally within one week.
+        If the work is not done properly, tell us within 24 hours and we will re-clean or refund.
+        Full terms are in our <a href="/refund-policy">Cancellation &amp; Refund Policy</a>.</p>
+      </div>
+      <div class="biz-term">
+        <h4>Where we operate</h4>
+        <p>We accept bookings in Karachi, Pakistan only, and we do not sell or ship goods outside Pakistan.
+        Customer support answers on WhatsApp and email every day between 8:00am and 10:00pm PKT, usually
+        within a couple of hours.</p>
       </div>
     </div>
 
