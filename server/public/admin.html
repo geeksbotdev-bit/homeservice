@@ -307,6 +307,25 @@
     .dgrid { grid-template-columns:repeat(2,1fr); }
     .dl > div { grid-template-columns:116px 1fr; }
   }
+
+  /* Identity documents open full size in the middle of the screen. A CNIC
+     cannot be checked from an 88px thumbnail, and opening a new tab loses the
+     admin's place in the list. */
+  #lightbox { position:fixed; inset:0; z-index:9999; display:none;
+              align-items:center; justify-content:center; background:rgba(15,23,42,.82);
+              backdrop-filter:blur(2px); padding:36px; }
+  #lightbox.on { display:flex; }
+  #lightbox img { max-width:min(1100px, 92vw); max-height:88vh; object-fit:contain;
+                  border-radius:12px; box-shadow:0 24px 60px rgba(0,0,0,.5); background:#fff; }
+  #lightbox .lb-cap { position:absolute; top:22px; left:0; right:0; text-align:center;
+                      color:#fff; font-size:13px; font-weight:600; letter-spacing:.3px; }
+  #lightbox .lb-x { position:absolute; top:16px; right:20px; width:38px; height:38px;
+                    border-radius:50%; border:0; background:rgba(255,255,255,.14); color:#fff;
+                    font-size:20px; line-height:1; cursor:pointer; }
+  #lightbox .lb-x:hover { background:rgba(255,255,255,.26); }
+  #lightbox .lb-hint { position:absolute; bottom:20px; left:0; right:0; text-align:center;
+                       color:rgba(255,255,255,.65); font-size:11.5px; }
+  .zoomable { cursor:zoom-in; }
 </style>
 </head>
 <body>
@@ -430,6 +449,21 @@
     completed:'t-green', cancelled:'t-red', pending:'t-gray',
   };
   const statusTag = (s) => `<span class="tag ${STATUS_TAG[s]||'t-gray'}">${esc((s||'').replace(/_/g,' '))}</span>`;
+
+
+  /** Show an identity document full size, centred. */
+  function openLb(url, caption) {
+    document.getElementById('lbImg').src = url;
+    document.getElementById('lbCap').textContent = caption || '';
+    document.getElementById('lightbox').classList.add('on');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLb() {
+    document.getElementById('lightbox').classList.remove('on');
+    document.getElementById('lbImg').src = '';
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
 
   async function api(pathname, opts = {}) {
     const r = await fetch(API + pathname, {
@@ -674,7 +708,7 @@
     document.getElementById('drawerTitle').textContent = c.name || 'Cleaner';
     document.getElementById('drawerSub').textContent = c.phone || '';
 
-    const doc = (url,label) => url ? '<a href="' + esc(url) + '" target="_blank"><img src="' + esc(url) + '" alt="' + label + '" /></a>' : '';
+    const doc = (url,label) => url ? '<img class="zoomable" src="' + esc(url) + '" alt="' + label + '" onclick="openLb(this.src, &quot;' + label + '&quot;)" />' : '';
     const jobs = (c.jobs||[]).length
       ? c.jobs.map(j => '<div class="brow"><span class="nm">' + esc(j.service) + '</span>' + statusTag(j.status) + '<span class="amt">' + fmtPKR(j.total) + '</span></div>').join('')
       : '<div class="empty" style="padding:18px">No jobs yet.</div>';
@@ -769,7 +803,7 @@
 
   function renderVerifications(list) {
     const thumb = (url, label) => url
-      ? `<a href="${esc(url)}" target="_blank" style="display:block"><div style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:5px">${label}</div><img src="${esc(url)}" style="width:130px;height:88px;object-fit:cover;border-radius:9px;border:1px solid var(--line)" /></a>`
+      ? `<div style="display:block"><div style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:5px">${label}</div><img class="zoomable" src="${esc(url)}" onclick="openLb(this.src, '${String(label).replace(/'/g, "\'")}')" style="width:130px;height:88px;object-fit:cover;border-radius:9px;border:1px solid var(--line)" /></div>`
       : `<div><div style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:5px">${label}</div><div style="width:130px;height:88px;border-radius:9px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:12px">None</div></div>`;
     const cards = list.map(c => `<div class="panel" style="padding:16px;margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -953,5 +987,12 @@
   // Auto-login if key stored.
   if (KEY) { fetch(API+'/admin/overview',{headers:{'x-admin-key':KEY}}).then(r=>{ if(r.ok) showApp(); }); }
 </script>
+
+<div id="lightbox" onclick="if(event.target.id==='lightbox')closeLb()">
+  <div class="lb-cap" id="lbCap"></div>
+  <button class="lb-x" onclick="closeLb()" aria-label="Close">&times;</button>
+  <img id="lbImg" alt="" />
+  <div class="lb-hint">Click outside the image, or press Esc, to close</div>
+</div>
 </body>
 </html>
