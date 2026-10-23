@@ -1,0 +1,12 @@
+# EAS is told to skip git (the repo path contains a space, which breaks its
+# shallow clone), so the upload is a plain directory copy — everything that is
+# rebuilt on the server, or has no business leaving this machine, is excluded.
+node_modules/
+.expo/
+dist/
+web-build/
+android/
+ios/
+.git/
+*.log
+.env.local

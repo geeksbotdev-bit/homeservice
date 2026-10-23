@@ -211,7 +211,9 @@ export default function BookingDetail() {
     const fee = paid - subtotal;
 
     const data: InvoiceData = {
-      invoiceNo: b.invoiceNo ?? invoiceRef(b.id),
+      // Bookings paid before invoice numbers were shortened still carry
+      // `INV-` + a 25-character id; print a readable one instead.
+      invoiceNo: b.invoiceNo && b.invoiceNo.length <= 20 ? b.invoiceNo : invoiceRef(b.id),
       date: b.dateLabel,
       billedName: me?.name || 'Customer',
       billedPhone: me?.phone || '',

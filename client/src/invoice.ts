@@ -39,18 +39,21 @@ export function buildInvoice(d: InvoiceData): jsPDF {
   // ── Header ──
   // An invoice has to identify the entity being paid, so the brand mark is
   // followed by the registered name, NTN and address.
-  // The real logo. If it ever fails to decode, fall back to the wordmark
-  // alone rather than letting the whole receipt throw.
-  let logoW = 0;
+  // The artwork already carries the wordmark, so printing the brand name
+  // beside it said "WithUrooj" twice. The mark alone, larger.
+  let drewLogo = false;
   try {
-    doc.addImage(LOGO_PNG, 'PNG', M, 14, 20, 16, undefined, 'FAST');
-    logoW = 24;
-  } catch { logoW = 0; }
+    doc.addImage(LOGO_PNG, 'PNG', M, 13, 30, 24, undefined, 'FAST');
+    drewLogo = true;
+  } catch { drewLogo = false; }
 
-  doc.setTextColor(...INK);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(19);
-  doc.text(BUSINESS.brand, M + logoW, 26);
+  // Only if the image could not be decoded does the name have to be typeset.
+  if (!drewLogo) {
+    doc.setTextColor(...INK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(19);
+    doc.text(BUSINESS.brand, M, 26);
+  }
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -61,7 +64,7 @@ export function buildInvoice(d: InvoiceData): jsPDF {
     BUSINESS.address,
     `${BUSINESS.phone}  ·  ${BUSINESS.email}`,
   ];
-  entity.forEach((line, i) => doc.text(line, M, 34 + i * 4));
+  entity.forEach((line, i) => doc.text(line, M, 41 + i * 4));
 
   // PAID badge (top-right)
   doc.setFillColor(...GREEN_BG);
@@ -77,30 +80,31 @@ export function buildInvoice(d: InvoiceData): jsPDF {
   doc.text(d.date, right, 34, { align: 'right' });
   doc.text(`Currency: ${BUSINESS.currency}`, right, 39, { align: 'right' });
 
-  // Teal divider
+  // Teal divider, clear of the header text above and the headings below.
   doc.setDrawColor(...TEAL);
   doc.setLineWidth(0.8);
-  doc.line(M, 52, right, 52);
+  doc.line(M, 60, right, 60);
 
   // ── Billed To / Cleaner ──
   const colB = W / 2;
-  label(doc, 'BILLED TO', M, 52);
-  label(doc, 'CLEANER', colB, 52);
+  label(doc, 'BILLED TO', M, 68);
+  label(doc, 'CLEANER', colB, 68);
 
   doc.setTextColor(...INK);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(12);
-  doc.text(d.billedName, M, 59);
-  doc.text(d.cleanerName, colB, 59);
+  doc.text(d.billedName, M, 75);
+  doc.text(d.cleanerName, colB, 75);
 
   doc.setFontSize(9);
   doc.setTextColor(...GRAY);
-  doc.text(d.billedPhone, M, 64.5);
-  doc.text(splitAddress(d.billedAddress), M, 69.5);
-  doc.text(`* ${d.cleanerRating}  ·  ${d.cleanerJobs} jobs`, colB, 64.5);
+  doc.text(d.billedPhone, M, 80.5);
+  doc.text(splitAddress(d.billedAddress), M, 85.5);
+  // A star glyph is not in the built-in font, so it printed as '*'.
+  doc.text(`${d.cleanerRating.toFixed(1)} rating  ·  ${d.cleanerJobs} job${d.cleanerJobs === 1 ? '' : 's'}`, colB, 80.5);
 
   // ── Line items table ──
-  let y = 86;
+  let y = 102;
   doc.setFontSize(11);
   const line = (lbl: string, amount: string, opts?: { muted?: boolean; bold?: boolean }) => {
     doc.setFont('helvetica', opts?.bold ? 'bold' : 'normal');
