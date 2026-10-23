@@ -18,6 +18,10 @@ export function serializeService(s: any) {
     gradient: [s.gradientStart, s.gradientEnd] as [string, string],
     description: s.description,
     included: safeParse(s.includedJson),
+    // The sheet prices documents but not cleaning, so the app shows "Price on
+    // request" for the latter rather than a misleading PKR 0.
+    quoteOnly: !!s.quoteOnly,
+    sheetGroup: s.sheetGroup ?? '',
     addOns: (s.addOns ?? []).map((a: any) => ({ id: a.key, name: a.name, desc: a.desc, price: a.price })),
   };
 }
@@ -114,8 +118,12 @@ export function serializeUser(u: any) {
     avatarUrl: u.avatarUrl ?? undefined,
     gender: u.gender ?? undefined,
     dob: u.dob ?? undefined,
+    lang: u.lang ?? 'en',
+    lat: u.lat ?? undefined,
+    lng: u.lng ?? undefined,
     addresses: (u.addresses ?? []).map((a: any) => ({
       id: a.id, label: a.label, line1: a.line1, area: a.area, isDefault: a.isDefault,
+      lat: a.lat ?? undefined, lng: a.lng ?? undefined,
     })),
     paymentMethods: (u.paymentMethods ?? []).map((p: any) => ({
       id: p.id, type: p.type, name: p.name, detail: p.detail, isDefault: p.isDefault,

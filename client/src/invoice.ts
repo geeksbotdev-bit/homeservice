@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { formatPKR } from './utils';
+import { BUSINESS, legalLine } from './business';
 
 export interface InvoiceData {
   invoiceNo: string;
@@ -35,38 +36,48 @@ export function buildInvoice(d: InvoiceData): jsPDF {
   const right = W - M;
 
   // ── Header ──
-  doc.setFillColor(...ORANGE);
-  doc.roundedRect(M, 18, 12, 12, 2.5, 2.5, 'F');
+  // An invoice has to identify the entity being paid, so the brand mark is
+  // followed by the registered name, NTN and address.
+  doc.setFillColor(...TEAL);
+  doc.roundedRect(M, 16, 12, 12, 2.5, 2.5, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('HS', M + 6, 26, { align: 'center' });
+  doc.setFontSize(10);
+  doc.text('WU', M + 6, 24, { align: 'center' });
 
   doc.setTextColor(...INK);
-  doc.setFontSize(20);
-  doc.text('HomeService', M + 16, 27);
+  doc.setFontSize(19);
+  doc.text(BUSINESS.brand, M + 16, 25);
+
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setTextColor(...GRAY);
-  doc.text('Pakistan  ·  PKR  ·  homeservice.pk', M + 16, 33);
+  const entity = [
+    `${BUSINESS.legalName}  ·  Proprietor: ${BUSINESS.proprietor}`,
+    `NTN ${BUSINESS.ntn}  (${BUSINESS.taxOffice})`,
+    BUSINESS.address,
+    `${BUSINESS.phone}  ·  ${BUSINESS.email}`,
+  ];
+  entity.forEach((line, i) => doc.text(line, M, 34 + i * 4));
 
   // PAID badge (top-right)
   doc.setFillColor(...GREEN_BG);
-  doc.roundedRect(right - 26, 18, 26, 8, 4, 4, 'F');
+  doc.roundedRect(right - 26, 16, 26, 8, 4, 4, 'F');
   doc.setTextColor(...GREEN_TX);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text('PAID', right - 13, 23.5, { align: 'center' });
+  doc.text('PAID', right - 13, 21.5, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...GRAY);
-  doc.text(`Invoice ${d.invoiceNo}`, right, 31, { align: 'right' });
-  doc.text(d.date, right, 36, { align: 'right' });
+  doc.text(`Invoice ${d.invoiceNo}`, right, 29, { align: 'right' });
+  doc.text(d.date, right, 34, { align: 'right' });
+  doc.text(`Currency: ${BUSINESS.currency}`, right, 39, { align: 'right' });
 
   // Teal divider
   doc.setDrawColor(...TEAL);
   doc.setLineWidth(0.8);
-  doc.line(M, 42, right, 42);
+  doc.line(M, 52, right, 52);
 
   // ── Billed To / Cleaner ──
   const colB = W / 2;
@@ -101,7 +112,7 @@ export function buildInvoice(d: InvoiceData): jsPDF {
 
   d.items.forEach((it) => line(it.label, formatPKR(it.amount)));
   line('Subtotal', formatPKR(d.subtotal), { muted: true });
-  line('HomeService fee (5%)', formatPKR(d.fee), { muted: true });
+  line(`${BUSINESS.brand} service fee`, formatPKR(d.fee), { muted: true });
 
   // Total (teal rule above)
   y += 1;
@@ -131,7 +142,8 @@ export function buildInvoice(d: InvoiceData): jsPDF {
   doc.line(M, 275, right, 275);
   doc.setFontSize(9);
   doc.setTextColor(...GRAY);
-  doc.text('Thank you for choosing HomeService. This is a computer-generated invoice.', W / 2, 281, { align: 'center' });
+  doc.text('Thank you for choosing WithUrooj. This is a computer-generated invoice and needs no signature.', W / 2, 278, { align: 'center' });
+  doc.text(`${legalLine()}  ·  ${BUSINESS.website}`, W / 2, 283, { align: 'center' });
 
   return doc;
 }

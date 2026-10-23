@@ -7,26 +7,48 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      }
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_USE_MOCKS": "true"
       }
     },
     "preview-live": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_USE_MOCKS": "false",
-        "EXPO_PUBLIC_API_URL": "https://uroojwithus.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://uroojwithus.vercel.app",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDCXGxH1gB9U6yFO8XCI3PQ_IT4SRBTVZQ",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "homeservice-76156.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "homeservice-76156",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "homeservice-76156.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "451696200120"
       }
     },
     "production": {
       "autoIncrement": true,
-      "android": { "buildType": "app-bundle" }
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_USE_MOCKS": "false",
+        "EXPO_PUBLIC_API_URL": "https://uroojwithus.vercel.app",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDCXGxH1gB9U6yFO8XCI3PQ_IT4SRBTVZQ",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "homeservice-76156.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "homeservice-76156",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "homeservice-76156.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "451696200120"
+      }
     }
   },
   "submit": {

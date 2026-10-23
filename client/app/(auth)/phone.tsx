@@ -7,9 +7,10 @@ import { Text, Button, NavBar, toFullPk } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { auth } from '../../src/services/api';
 import { setAuthToken, setUserRole } from '../../src/services/client';
-import { signInWithGoogle } from '../../src/services/firebaseAuth';
-import { isFirebaseConfigured } from '../../src/services/firebase';
+import { signInWithGoogle, canUseGoogle } from '../../src/services/firebaseAuth';
 import { showToast } from '../../src/store/toast';
+import { adoptUserLang } from '../../src/store/lang';
+import { alertT, ph, toastT } from '../../src/i18n';
 
 export default function PhoneAuth() {
   const router = useRouter();
@@ -30,10 +31,43 @@ export default function PhoneAuth() {
       // In dev (no SMS gateway) the code comes back as devCode so signup is testable.
       const r: any = await auth.requestOtp(e164);
       setLoading(false);
-      router.push({ pathname: '/(auth)/otp', params: { phone, role, mode, fb: '0', dev: r?.devCode ?? '' } });
+      // Creating an account on a number that already has one is a mistake, not
+      // a login: say so here, before a code is sent, and point at Log In.
+      if (!isLogin && r?.exists === true) {
+        alertT(
+          'This number already has an account',
+          'Log in with it instead of creating a new one.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Log In', onPress: () => router.replace({ pathname: '/(auth)/phone', params: { mode: 'login' } }) },
+          ],
+        );
+        return;
+      }
+      // The mirror case: logging in with a number nobody has registered. Say
+      // so here rather than sending a code that would create a new account.
+      if (isLogin && r?.exists === false) {
+        alertT(
+          'No account found',
+          'There is no account with this number yet. Create one to get started.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Create account', onPress: () => router.replace({ pathname: '/(auth)/phone', params: { mode: 'signup' } }) },
+          ],
+        );
+        return;
+      }
+      // Somebody who already has an account is never asked "customer or
+      // cleaner?" — their account already answers it. Only a number with no
+      // account goes through the role picker on the way to the code screen.
+      if (!isLogin && r?.exists === false && !role) {
+        router.push({ pathname: '/(auth)/role', params: { phone, mode, dev: r?.devCode ?? '' } });
+        return;
+      }
+      router.push({ pathname: '/(auth)/otp', params: { phone, role, mode: mode ?? (isLogin ? 'login' : 'signup'), fb: '0', dev: r?.devCode ?? '' } });
     } catch (e: any) {
       setLoading(false);
-      Alert.alert('Could not send code', e?.message ?? 'Please try again.');
+      alertT('Could not send code', e?.message ?? 'Please try again.');
     }
   }
 
@@ -41,6 +75,7 @@ export default function PhoneAuth() {
     setGoogleLoading(true);
     try {
       const user = await signInWithGoogle();
+      if (!user) { setGoogleLoading(false); return; }   // the user backed out
       // Exchange the Firebase ID token for an app session token so the
       // backend (/me, /bookings, …) recognises us.
       const idToken = user ? await user.getIdToken() : '';
@@ -52,17 +87,34 @@ export default function PhoneAuth() {
       // The SERVER's role is the truth — persisting anything else means the
       // session looks right until the next refresh.
       setUserRole(res.user?.role ?? 'client');
+      // Apply the language saved on this account. A brand-new sign-up has
+      // none, so registration stays in English.
+      if (res.user?.id) await adoptUserLang(res.user.id, res.user.lang);
       const pro = res.user?.role === 'pro' || res.user?.role === 'professional';
       if (!res.isNew && wantRole && (wantRole === 'professional') !== pro) {
-        showToast(
+        toastT(
           'Signed in to your existing account',
           pro ? 'This account is registered as a cleaner' : 'This account is registered as a customer',
         );
       }
-      if (!res.user?.name) router.replace({ pathname: '/(auth)/register', params: { role: pro ? 'professional' : 'client' } });
-      else router.replace(pro ? '/(pro)' : '/(tabs)');
+      // Google gives us a name and email but never an address, and the name is
+      // whatever is on the Google account. A first-time sign-up therefore still
+      // goes through the profile step, prefilled, so they confirm it and tell
+      // us where they are — a booking with no location cannot be dispatched.
+      if (res.isNew || !res.user?.name) {
+        router.replace({
+          pathname: '/(auth)/register',
+          params: {
+            role: pro ? 'professional' : 'client',
+            name: res.user?.name ?? user?.displayName ?? '',
+            email: res.user?.email ?? user?.email ?? '',
+          },
+        });
+      } else {
+        router.replace(pro ? '/(pro)' : '/(tabs)');
+      }
     } catch (e: any) {
-      Alert.alert('Google sign-in', e?.message ?? 'Could not sign in with Google.');
+      alertT('Google sign-in', e?.message ?? 'Could not sign in with Google.');
     } finally {
       setGoogleLoading(false);
     }
@@ -99,7 +151,7 @@ export default function PhoneAuth() {
           </View>
           <TextInput
             style={styles.input}
-            placeholder="3XX XXX XXXX"
+            placeholder={ph('3XX XXX XXXX')}
             placeholderTextColor={colors.textDisabled}
             keyboardType="phone-pad"
             value={phone}
@@ -117,8 +169,9 @@ export default function PhoneAuth() {
 
         <Button label="Send Code" iconRight="send" onPress={sendCode} disabled={!valid} loading={loading} loadingLabel="Sending..." style={{ marginTop: 24 }} />
 
-        {/* Google sign-in (only when Firebase is configured) */}
-        {isFirebaseConfigured && (
+        {/* Shown only where it can actually complete: on native that means the
+            Google OAuth client id for this build is present. */}
+        {canUseGoogle && (
           <>
             <View style={styles.sep}>
               <View style={styles.line} />

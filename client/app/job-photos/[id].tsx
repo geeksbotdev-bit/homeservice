@@ -8,6 +8,7 @@ import { Text, Button, Card, NavBar } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
 import { pro } from '../../src/services/api';
 import { showToast } from '../../src/store/toast';
+import { toastT } from '../../src/i18n';
 
 const MAX_PHOTOS = 6;
 
@@ -30,12 +31,12 @@ export default function JobPhotos() {
     : { title: 'Finish the job', head: 'Photo of your work', sub: 'Take a picture of the area you cleaned. This is sent with the completed job.', cta: 'Complete Job', icon: 'check-circle' as const };
 
   async function add(camera: boolean) {
-    if (photos.length >= MAX_PHOTOS) { showToast('Limit reached', `Up to ${MAX_PHOTOS} photos`); return; }
+    if (photos.length >= MAX_PHOTOS) { toastT('Limit reached', `Up to ${MAX_PHOTOS} photos`); return; }
     try {
       const perm = camera
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted && Platform.OS !== 'web') { showToast('Permission needed', 'Allow camera access to add the photo'); return; }
+      if (!perm.granted && Platform.OS !== 'web') { toastT('Permission needed', 'Allow camera access to add the photo'); return; }
       const res = camera
         ? await ImagePicker.launchCameraAsync({ base64: true, quality: 0.5 })
         : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.5 });
@@ -45,7 +46,7 @@ export default function JobPhotos() {
       const { url } = await pro.uploadImage(`data:${a.mimeType || 'image/jpeg'};base64,${a.base64}`);
       setPhotos((p) => [...p, url]);
     } catch (e: any) {
-      showToast('Upload failed', e?.message || 'Could not upload the photo');
+      toastT('Upload failed', e?.message || 'Could not upload the photo');
     } finally {
       setUploading(false);
     }
@@ -60,10 +61,10 @@ export default function JobPhotos() {
         isBefore ? 'in_progress' : 'completed',
         isBefore ? { beforePhotos: photos } : { afterPhotos: photos },
       );
-      showToast(isBefore ? 'Job started' : 'Job completed', isBefore ? 'Good luck!' : 'Nice work — the customer has been notified');
+      toastT(isBefore ? 'Job started' : 'Job completed', isBefore ? 'Good luck!' : 'Nice work — the customer has been notified');
       router.replace(`/pro-job/${id}`);
     } catch (e: any) {
-      showToast('Could not update the job', e?.message || 'Please try again');
+      toastT('Could not update the job', e?.message || 'Please try again');
     } finally {
       setSaving(false);
     }

@@ -9,6 +9,7 @@ import { colors, radius } from '../../src/theme/theme';
 import { user as userApi } from '../../src/services/api';
 import { initials } from '../../src/utils';
 import type { User } from '../../src/data/types';
+import { alertT, ph } from '../../src/i18n';
 
 const GENDERS = ['Male', 'Female', 'Other'];
 
@@ -35,7 +36,7 @@ export default function EditProfile() {
   async function pickPhoto() {
     if (Platform.OS !== 'web') {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { Alert.alert('Permission needed', 'Please allow photo access to set a profile picture.'); return; }
+      if (!perm.granted) { alertT('Permission needed', 'Please allow photo access to set a profile picture.'); return; }
     }
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'] as any, allowsEditing: true, aspect: [1, 1], quality: 0.4, base64: true,
@@ -73,10 +74,10 @@ export default function EditProfile() {
         </View>
 
         <Field label="Full name *">
-          <TextInput style={styles.input} placeholder="Your name" placeholderTextColor={colors.textDisabled} value={name} onChangeText={setName} editable={loaded} />
+          <TextInput style={styles.input} placeholder={ph('Your name')} placeholderTextColor={colors.textDisabled} value={name} onChangeText={setName} editable={loaded} />
         </Field>
         <Field label="Email">
-          <TextInput style={styles.input} placeholder="you@example.com" placeholderTextColor={colors.textDisabled} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" editable={loaded} />
+          <TextInput style={styles.input} placeholder={ph('you@example.com')} placeholderTextColor={colors.textDisabled} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" editable={loaded} />
         </Field>
         <Field label="Phone">
           <PhoneField value={phone} onChangeText={setPhone} editable={loaded} />
@@ -96,10 +97,10 @@ export default function EditProfile() {
         </Field>
 
         <Field label="Date of birth">
-          <TextInput style={styles.input} placeholder="DD / MM / YYYY" placeholderTextColor={colors.textDisabled} value={dob} onChangeText={setDob} editable={loaded} />
+          <TextInput style={styles.input} placeholder={ph('DD / MM / YYYY')} placeholderTextColor={colors.textDisabled} value={dob} onChangeText={setDob} editable={loaded} />
         </Field>
         <Field label="City / Area">
-          <TextInput style={styles.input} placeholder="DHA Phase 5, Lahore" placeholderTextColor={colors.textDisabled} value={location} onChangeText={setLocation} editable={loaded} />
+          <TextInput style={styles.input} placeholder={ph('Gulshan-e-Iqbal, Karachi')} placeholderTextColor={colors.textDisabled} value={location} onChangeText={setLocation} editable={loaded} />
         </Field>
 
         <Button label="Save Changes" icon="check" onPress={save} disabled={!name.trim()} loading={saving} loadingLabel="Saving..." style={{ marginTop: 8 }} />

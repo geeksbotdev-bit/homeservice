@@ -6,20 +6,26 @@ import { Feather } from '@expo/vector-icons';
 import { Text, Button, Logo } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { user as userApi } from '../../src/services/api';
-import { isPro } from '../../src/services/client';
+import { isPro, getUserRole } from '../../src/services/client';
+import { ph } from '../../src/i18n';
 
 /** First-time registration: new user completes their profile, then enters the app. */
 export default function Register() {
   const router = useRouter();
-  const { role } = useLocalSearchParams<{ role?: string }>();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  // Google sign-up arrives with a name and email already known, so those are
+  // prefilled and the person only confirms them and adds their area.
+  const { role, name: gName, email: gEmail } = useLocalSearchParams<{ role?: string; name?: string; email?: string }>();
+  const [name, setName] = useState(gName ?? '');
+  const [email, setEmail] = useState(gEmail ?? '');
   const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // The saved session role (set from the server at sign-in) decides the home
-  // screen; the param is only a fallback for the very first signup hop.
-  const home = isPro() || role === 'professional' ? '/(pro)' : '/(tabs)';
+  // Only the session role decides the home screen, and it was set from the
+  // server at sign-in. The screen param is used just when there is no session
+  // role yet — ORing the two in let a stale "pro" from a previous user on this
+  // device send a brand-new customer to the cleaner app.
+  const sessionRole = getUserRole();
+  const home = (sessionRole ? isPro() : role === 'professional') ? '/(pro)' : '/(tabs)';
 
   async function finish() {
     if (!name.trim()) return;
@@ -44,13 +50,13 @@ export default function Register() {
         </Text>
 
         <Field label="Full name *">
-          <TextInput style={styles.input} placeholder="e.g. Ahmed Ali" placeholderTextColor={colors.textDisabled} value={name} onChangeText={setName} autoFocus />
+          <TextInput style={styles.input} placeholder={ph('e.g. Ahmed Ali')} placeholderTextColor={colors.textDisabled} value={name} onChangeText={setName} autoFocus />
         </Field>
         <Field label="Email (optional)">
-          <TextInput style={styles.input} placeholder="you@example.com" placeholderTextColor={colors.textDisabled} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <TextInput style={styles.input} placeholder={ph('you@example.com')} placeholderTextColor={colors.textDisabled} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
         </Field>
         <Field label="City / Area (optional)">
-          <TextInput style={styles.input} placeholder="DHA Phase 5, Lahore" placeholderTextColor={colors.textDisabled} value={location} onChangeText={setLocation} />
+          <TextInput style={styles.input} placeholder={ph('Gulshan-e-Iqbal, Karachi')} placeholderTextColor={colors.textDisabled} value={location} onChangeText={setLocation} />
         </Field>
 
         <Button label="Continue" iconRight="arrow-right" onPress={finish} disabled={!name.trim()} loading={saving} loadingLabel="Setting up..." style={{ marginTop: 12 }} />

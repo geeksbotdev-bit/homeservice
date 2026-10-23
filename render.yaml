@@ -15,7 +15,10 @@ services:
       - key: JWT_SECRET
         generateValue: true            # Render generates a strong secret
       - key: ADMIN_KEY
-        value: homeservice-admin       # change for production
+        generateValue: true            # never commit this: the admin panel
+                                       # exposes customer PII and cleaner CNIC
+                                       # images, so the key is generated per
+                                       # environment, not stored in the repo
       - key: DATABASE_URL
         value: file:./dev.db           # SQLite (resets on redeploy). Swap for Postgres for persistence.
       - key: BAFL_MERCHANT_ID

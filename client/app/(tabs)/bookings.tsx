@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,7 @@ import { bookings as bookingsApi, services as servicesApi } from '../../src/serv
 import { formatPKR, initials } from '../../src/utils';
 import { useBooking } from '../../src/store/booking';
 import type { Booking, Service } from '../../src/data/types';
+import { useLiveRefresh } from '../../src/hooks/useLiveRefresh';
 
 const UPCOMING = ['confirmed', 'on_the_way', 'arrived', 'in_progress'];
 
@@ -21,10 +22,12 @@ export default function Bookings() {
   const [services, setServices] = useState<Service[]>([]);
 
   // Refetch on focus so status changes (e.g. cleaner advancing a job) show up.
-  useFocusEffect(useCallback(() => {
-    bookingsApi.list().then(setList);
-    servicesApi.list().then(setServices);
-  }, []));
+  // A booking's status changes while this list is open — a cleaner accepts,
+  // sets off, arrives — so it refreshes itself rather than only on entry.
+  useLiveRefresh(useCallback(() => {
+    bookingsApi.list().then(setList).catch(() => {});
+    servicesApi.list().then(setServices).catch(() => {});
+  }, []), 6000);
 
   function rebook(b: Booking) {
     const svc = services.find((s) => s.name === b.service);
@@ -46,7 +49,7 @@ export default function Bookings() {
       <View style={styles.segment}>
         {(['upcoming', 'past'] as const).map((t) => (
           <Pressable key={t} onPress={() => setTab(t)} style={[styles.segItem, tab === t && styles.segActive]}>
-            <Text weight="bold" color={tab === t ? colors.primary : colors.textTertiary} style={{ textTransform: 'capitalize' }}>{t}</Text>
+            <Text weight="bold" color={tab === t ? colors.primary : colors.textTertiary}>{t === 'upcoming' ? 'Upcoming' : 'Past'}</Text>
           </Pressable>
         ))}
       </View>

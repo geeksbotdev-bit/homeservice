@@ -37,6 +37,8 @@ interface BookingCtx {
   setSchedule: (dateLabel: string, timeLabel: string) => void;
   setMode: (mode: 'now' | 'later') => void;
   setMatchedCleaner: (c: Cleaner) => void;
+  /** The address the job is for — taken from the account, editable by the user. */
+  setAddress: (address: string) => void;
   selectedAddOns: AddOn[];
   subtotal: number;
   fee: number;
@@ -44,7 +46,9 @@ interface BookingCtx {
   reset: () => void;
 }
 
-const initial: Draft = { quantity: 1, addOnIds: [], mode: 'now', address: 'House 42, Street 7, Block D, DHA Phase 5, Lahore' };
+// No address baked in: the booking carries whatever the account actually has
+// (default address, else the detected location), resolved when the flow starts.
+const initial: Draft = { quantity: 1, addOnIds: [], mode: 'now', address: '' };
 
 const Ctx = createContext<BookingCtx | null>(null);
 
@@ -73,6 +77,7 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
       setSchedule: (dateLabel, timeLabel) => setDraft((d) => ({ ...d, dateLabel, timeLabel })),
       setMode: (mode) => setDraft((d) => ({ ...d, mode })),
       setMatchedCleaner: (c) => setDraft((d) => ({ ...d, matchedCleaner: c })),
+      setAddress: (address) => setDraft((d) => (d.address === address ? d : { ...d, address })),
       selectedAddOns,
       subtotal,
       fee,

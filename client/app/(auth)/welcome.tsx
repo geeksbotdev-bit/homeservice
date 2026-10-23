@@ -74,7 +74,7 @@ export default function Welcome() {
       {/* White content sheet (text follows the active slide) */}
       <View style={styles.sheet}>
         <View style={{ marginBottom: spacing.lg }}>
-          <Logo size={40} />
+          <Logo size={56} />
         </View>
 
         <Text variant="display" center style={{ fontSize: 28, lineHeight: 33, letterSpacing: -0.8, minHeight: 66 }}>
@@ -98,7 +98,7 @@ export default function Welcome() {
           <Button label="Next" iconRight="arrow-right" onPress={() => goTo(active + 1)} />
         ) : (
           // SIGN UP asks the account type (customer or cleaner)…
-          <Button label="Get Started" iconRight="arrow-right" onPress={() => router.push('/(auth)/role')} />
+          <Button label="Get Started" iconRight="arrow-right" onPress={() => router.push({ pathname: '/(auth)/phone', params: { mode: 'signup' } })} />
         )}
 
         {/* …but LOG IN never asks — a returning user's role is stored on their

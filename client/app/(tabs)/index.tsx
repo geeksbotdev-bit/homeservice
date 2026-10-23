@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, RefreshControl, Modal } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, ServiceIcon } from '../../src/components';
 import { showToast } from '../../src/store/toast';
 import { colors, radius, spacing, shadow } from '../../src/theme/theme';
 import { services as servicesApi, user as userApi, notifications as notifApi, bookings as bookingsApi } from '../../src/services/api';
-import { formatPKR } from '../../src/utils';
+import { detectCurrentLocation } from '../../src/services/geo';
+import { formatPKR, servicePrice } from '../../src/utils';
 import { useBooking } from '../../src/store/booking';
 import type { Service, User, Booking, AppNotification } from '../../src/data/types';
+import { ph, toastT } from '../../src/i18n';
+import { useLiveRefresh } from '../../src/hooks/useLiveRefresh';
 
 const ACTIVE = ['confirmed', 'on_the_way', 'arrived', 'in_progress'];
 
@@ -49,7 +52,9 @@ export default function Home() {
   const [query, setQuery] = useState('');
   const [unread, setUnread] = useState(0);
   const [active, setActive] = useState<Booking | null>(null);
-  const [cat, setCat] = useState<string | null>(null);
+  // Several categories can be ticked at once; empty means "all".
+  const [cats_, setCats] = useState<string[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,13 +74,18 @@ export default function Home() {
     }
   }, []);
 
-  const cats = useMemo(() => Array.from(new Set(list.map((s) => s.category))), [list]);
+  // Group by the sheet heading, which is what the catalogue is organised by.
+  const cats = useMemo(
+    () => Array.from(new Set(list.map((s) => s.sheetGroup || s.category))).sort(),
+    [list],
+  );
+
   const shown = useMemo(
     () => list.filter((s) => {
       const matchesQuery = `${s.name} ${s.tagline} ${s.category}`.toLowerCase().includes(query.trim().toLowerCase());
-      return matchesQuery && (!cat || s.category === cat);
+      return matchesQuery && (cats_.length === 0 || cats_.includes(s.sheetGroup || s.category));
     }),
-    [list, query, cat],
+    [list, query, cats_],
   );
 
   // Type-ahead suggestions for the search box (matching services).
@@ -86,12 +96,11 @@ export default function Home() {
     [list, query],
   );
 
-  function cycleFilter() {
-    const opts: (string | null)[] = [null, ...cats];
-    setCat(opts[(opts.indexOf(cat) + 1) % opts.length]);
+  function toggleCat(c: string) {
+    setCats((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   }
   function clearFilters() {
-    setCat(null);
+    setCats([]);
     setQuery('');
   }
   function seeAll() {
@@ -99,12 +108,33 @@ export default function Home() {
   }
 
   useEffect(() => { loadServices(); }, [loadServices]);
+
+  // First time in: ask for location and fill the address in from the GPS fix,
+  // so nobody has to type theirs to get started. It runs only while the account
+  // still has no location — after that the saved one wins and the user changes
+  // it from the picker. A refusal is fine: they pick an area by hand instead.
+  const askedLocation = useRef(false);
+  useEffect(() => {
+    if (!me || askedLocation.current) return;
+    if (me.location) return;
+    askedLocation.current = true;
+    (async () => {
+      try {
+        const fix = await detectCurrentLocation();
+        await userApi.update({ location: fix.label, lat: fix.lat, lng: fix.lng });
+        setMe((prev) => (prev ? { ...prev, location: fix.label, lat: fix.lat, lng: fix.lng } : prev));
+      } catch { /* denied or unavailable — the picker is still one tap away */ }
+    })();
+  }, [me]);
+
   // Refresh user + unread count whenever Home regains focus (location/profile edits).
-  useFocusEffect(useCallback(() => {
+  // The banner at the top tracks a job in progress, so it has to keep up with
+  // it while Home is open — not only when Home is re-entered.
+  useLiveRefresh(useCallback(() => {
     userApi.me().then(setMe).catch(() => {});
     notifApi.list().then((r) => setUnread(r.unread)).catch(() => {});
     bookingsApi.list().then((bs) => setActive(bs.find((b) => ACTIVE.includes(b.status)) ?? null)).catch(() => {});
-  }, []));
+  }, []), 7000);
 
   function openService(s: Service) {
     startBooking(s, mode);
@@ -149,7 +179,7 @@ export default function Home() {
           <Feather name="search" size={17} color={colors.textDisabled} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search services..."
+            placeholder={ph('Search services...')}
             placeholderTextColor={colors.textDisabled}
             value={query}
             onChangeText={setQuery}
@@ -160,10 +190,67 @@ export default function Home() {
               <Feather name="x" size={16} color={colors.textDisabled} />
             </Pressable>
           )}
-          <Pressable style={[styles.filterBtn, cat && styles.filterBtnOn]} onPress={cycleFilter}>
-            <Feather name="sliders" size={14} color={cat ? colors.white : colors.primary} />
+          <Pressable
+            style={[styles.filterBtn, cats_.length > 0 && styles.filterBtnOn]}
+            onPress={() => setFilterOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel="Filter services by category"
+          >
+            <Feather name="sliders" size={14} color={cats_.length > 0 ? colors.white : colors.primary} />
+            {cats_.length > 0 && (
+              <View style={styles.filterCount}>
+                <Text weight="bold" color={colors.primary} style={{ fontSize: 10 }}>{String(cats_.length)}</Text>
+              </View>
+            )}
           </Pressable>
         </View>
+
+        {/* Category filter — multi-select, since the catalogue has 15 groups */}
+        {filterOpen && (
+          <View style={styles.filterBox}>
+            <View style={styles.filterHead}>
+              <Text weight="bold" style={{ fontSize: 13 }}>Filter by service</Text>
+              <Pressable onPress={() => setFilterOpen(false)} hitSlop={8}>
+                <Feather name="x" size={16} color={colors.textTertiary} />
+              </Pressable>
+            </View>
+            <ScrollView style={{ maxHeight: 260 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+              {/* Ticks or clears every category in one go. */}
+              <Pressable
+                onPress={() => setCats(cats_.length === cats.length ? [] : [...cats])}
+                style={[styles.filterRow, { borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt }]}
+              >
+                <View style={[styles.filterBox2, cats_.length === cats.length && styles.filterBox2On]}>
+                  {cats_.length === cats.length && <Feather name="check" size={12} color={colors.white} />}
+                  {cats_.length > 0 && cats_.length < cats.length && <View style={styles.filterDash} />}
+                </View>
+                <Text weight="bold" style={{ flex: 1, fontSize: 13 }}>All services</Text>
+                <Text variant="bodySm" color={colors.textDisabled} style={{ fontSize: 11 }}>{String(list.length)}</Text>
+              </Pressable>
+              {cats.map((c) => {
+                const on = cats_.includes(c);
+                const n = list.filter((s) => (s.sheetGroup || s.category) === c).length;
+                return (
+                  <Pressable key={c} onPress={() => toggleCat(c)} style={styles.filterRow}>
+                    <View style={[styles.filterBox2, on && styles.filterBox2On]}>
+                      {on && <Feather name="check" size={12} color={colors.white} />}
+                    </View>
+                    <Text style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>{c}</Text>
+                    <Text variant="bodySm" color={colors.textDisabled} style={{ fontSize: 11 }}>{String(n)}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <View style={styles.filterFoot}>
+              <Pressable onPress={() => setCats([])} hitSlop={8}>
+                <Text variant="bodySm" weight="semibold" color={colors.textTertiary}>Clear all</Text>
+              </Pressable>
+              <Pressable onPress={() => setFilterOpen(false)} hitSlop={8}>
+                <Text variant="bodySm" weight="bold" color={colors.primary}>Done</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Type-ahead services dropdown */}
         {suggestions.length > 0 && (
@@ -179,7 +266,7 @@ export default function Home() {
                   <Text weight="semibold" style={{ fontSize: 14 }} numberOfLines={1}>{s.name}</Text>
                   <Text variant="bodySm" color={colors.textTertiary} numberOfLines={1} style={{ fontSize: 12 }}>{s.tagline}</Text>
                 </View>
-                <Text weight="bold" color={colors.primary} style={{ fontSize: 13 }}>{formatPKR(s.basePrice)}</Text>
+                <Text weight="bold" color={colors.primary} style={{ fontSize: 13 }}>{servicePrice(s)}</Text>
               </Pressable>
             ))}
           </View>
@@ -190,7 +277,7 @@ export default function Home() {
           {DEPARTMENTS.map((d) => (
             <Pressable
               key={d.key}
-              onPress={() => { if (!d.active) showToast('Coming soon', `${d.label} service is launching soon`); }}
+              onPress={() => { if (!d.active) toastT('Coming soon', `${d.label} service is launching soon`); }}
               style={styles.dept}
             >
               <View style={styles.deptIconWrap}>
@@ -204,12 +291,16 @@ export default function Home() {
           ))}
         </ScrollView>
 
-        {cat && (
-          <View style={styles.activeFilter}>
-            <Text variant="bodySm" weight="semibold" color={colors.primary700}>Category: {cat}</Text>
-            <Pressable onPress={() => setCat(null)} hitSlop={8}>
-              <Feather name="x" size={14} color={colors.primary700} />
-            </Pressable>
+        {cats_.length > 0 && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {cats_.map((c) => (
+              <View key={c} style={styles.activeFilter}>
+                <Text variant="bodySm" weight="semibold" color={colors.primary700} numberOfLines={1}>{c}</Text>
+                <Pressable onPress={() => toggleCat(c)} hitSlop={8}>
+                  <Feather name="x" size={14} color={colors.primary700} />
+                </Pressable>
+              </View>
+            ))}
           </View>
         )}
 
@@ -250,7 +341,7 @@ export default function Home() {
         ) : error ? (
           <View style={{ alignItems: 'center', paddingVertical: 36, gap: 12 }}>
             <Feather name="wifi-off" size={32} color={colors.textDisabled} />
-            <Text color={colors.textTertiary} center>Couldn't load services.{'\n'}Check your connection.</Text>
+            <Text color={colors.textTertiary} center>Couldn't load services. Check your connection.</Text>
             <Pressable style={styles.retryBtn} onPress={() => loadServices()}>
               <Feather name="refresh-cw" size={14} color={colors.white} />
               <Text weight="bold" color={colors.white} style={{ fontSize: 13 }}>Retry</Text>
@@ -260,9 +351,9 @@ export default function Home() {
           <View style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
             <Feather name="search" size={32} color={colors.border} />
             <Text color={colors.textDisabled} center>
-              {query || cat ? `No services match ${query ? `“${query}”` : `“${cat}”`}` : 'No services available yet.'}
+              {query || cats_.length ? `No services match ${query ? `“${query}”` : `“${cats_.join('”, “')}”`}` : 'No services available yet.'}
             </Text>
-            {(query || cat) && (
+            {(query || cats_.length > 0) && (
               <Pressable onPress={clearFilters} hitSlop={8}><Text weight="semibold" color={colors.primary}>Clear filters</Text></Pressable>
             )}
           </View>
@@ -296,7 +387,7 @@ export default function Home() {
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View>
-                      <Text weight="extrabold" color={colors.primary} style={{ fontSize: 18 }}>{formatPKR(s.basePrice)}</Text>
+                      <Text weight="extrabold" color={colors.primary} style={{ fontSize: 18 }}>{servicePrice(s)}</Text>
                       <Text style={{ fontSize: 10 }} color={colors.textDisabled}>Supplies included</Text>
                     </View>
                     <View style={styles.plus}>
@@ -351,6 +442,18 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
+  // A ticked department gets a tinted card and a check over its icon, so what
+  // is filtering the list below is obvious at a glance.
+  deptOn: { backgroundColor: colors.primary50, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.primary },
+  deptCheck: { position: 'absolute', bottom: -3, right: -3, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.primary700, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.white },
+  filterCount: { position: 'absolute', top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  filterBox: { backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border, marginTop: 8, overflow: 'hidden', ...shadow.soft },
+  filterHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  filterBox2: { width: 19, height: 19, borderRadius: 5, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  filterDash: { width: 9, height: 2.5, borderRadius: 2, backgroundColor: colors.primary },
+  filterBox2On: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 11, borderTopWidth: 1, borderTopColor: colors.surfaceAlt },
   root: { flex: 1, backgroundColor: colors.surface },
   header: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingBottom: 18 },
   greetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, marginTop: 6 },
@@ -366,7 +469,7 @@ const styles = StyleSheet.create({
   filterBtn: { width: 32, height: 32, backgroundColor: colors.primary50, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   filterBtnOn: { backgroundColor: colors.primary },
   activeFilter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primary50, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 14, marginTop: -2 },
-  dept: { alignItems: 'center', gap: 8, width: 66 },
+  dept: { alignItems: 'center', gap: 8, width: 72, paddingVertical: 8, paddingHorizontal: 3 },
   deptLabel: { fontSize: 11, textAlign: 'center', lineHeight: 14, height: 28 },
   deptIconWrap: { width: 54, height: 54, alignItems: 'center', justifyContent: 'center' },
   deptIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },

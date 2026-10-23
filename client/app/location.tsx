@@ -8,17 +8,22 @@ import { Text, NavBar } from '../src/components';
 import { colors, radius } from '../src/theme/theme';
 import { user as userApi } from '../src/services/api';
 import type { User } from '../src/data/types';
+import { ph } from '../src/i18n';
 
-// Popular areas across major Pakistani cities.
+// WithUrooj operates out of Malir, Karachi, so the shortcuts below are Karachi
+// areas only. Anywhere else is still reachable through the search box, which
+// queries the whole country.
 const PK_AREAS: { city: string; areas: string[] }[] = [
-  { city: 'Lahore', areas: ['DHA Phase 5', 'DHA Phase 6', 'Gulberg III', 'Bahria Town', 'Johar Town', 'Model Town', 'Cantt', 'Wapda Town', 'Faisal Town'] },
-  { city: 'Karachi', areas: ['Clifton', 'DHA Phase 6', 'Gulshan-e-Iqbal', 'Bahadurabad', 'PECHS', 'North Nazimabad', 'Malir', 'Korangi'] },
-  { city: 'Islamabad', areas: ['F-6', 'F-7', 'F-8', 'F-10', 'F-11', 'G-11', 'G-13', 'E-11', 'Bahria Town'] },
-  { city: 'Rawalpindi', areas: ['Bahria Town', 'Saddar', 'Satellite Town', 'Chaklala Scheme 3', 'Gulraiz'] },
-  { city: 'Faisalabad', areas: ['Madina Town', 'Peoples Colony', 'Jaranwala Road', 'Civil Lines'] },
-  { city: 'Multan', areas: ['Cantt', 'Gulgasht Colony', 'Shah Rukn-e-Alam', 'Bosan Road'] },
-  { city: 'Peshawar', areas: ['Hayatabad', 'University Town', 'Cantt'] },
-  { city: 'Quetta', areas: ['Cantt', 'Jinnah Town', 'Satellite Town'] },
+  {
+    city: 'Karachi',
+    areas: [
+      'Malir', 'Malir Cantt', 'Shah Faisal Colony', 'Landhi', 'Korangi',
+      'Gulshan-e-Iqbal', 'Gulistan-e-Johar', 'Bahadurabad', 'PECHS', 'Tariq Road',
+      'Clifton', 'DHA Phase 2', 'DHA Phase 5', 'DHA Phase 6', 'Saddar',
+      'North Nazimabad', 'North Karachi', 'Nazimabad', 'FB Area', 'Gulberg',
+      'Scheme 33', 'Gadap Town', 'Shahra-e-Faisal', 'Bahria Town Karachi',
+    ],
+  },
 ];
 
 // Flattened "Area, City" options.
@@ -48,7 +53,7 @@ export default function LocationPicker() {
       try {
         const r = await fetch(
           `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=pk&addressdetails=1&limit=7&q=${encodeURIComponent(q)}`,
-          { headers: { 'Accept': 'application/json', 'User-Agent': 'HomeServiceApp/1.0' } },
+          { headers: { 'Accept': 'application/json', 'User-Agent': 'WithUroojApp/1.0' } },
         );
         const j = await r.json();
         setResults(Array.isArray(j) ? j : []);
@@ -87,13 +92,13 @@ export default function LocationPicker() {
       if (!label) {
         // Web / fallback: reverse-geocode via OpenStreetMap for a real area name.
         try {
-          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lng}`, { headers: { 'User-Agent': 'HomeServiceApp/1.0' } });
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lng}`, { headers: { 'User-Agent': 'WithUroojApp/1.0' } });
           const j = await r.json(); const a = j.address || {};
           label = [a.suburb || a.neighbourhood || a.road, a.city || a.town || a.state].filter(Boolean).join(', ') || (j.display_name || '').split(',').slice(0, 3).join(', ').trim();
         } catch { /* offline */ }
       }
       if (!label) label = 'Current location';
-      await userApi.update({ location: label });
+      await userApi.update({ location: label, lat, lng });
       setLocating(false);
       (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
     } catch (e: any) {
@@ -102,10 +107,12 @@ export default function LocationPicker() {
     }
   }
 
-  async function choose(area: string) {
+  async function choose(area: string, lat?: number, lng?: number) {
     if (busy) return;
     setBusy(true);
-    await userApi.update({ location: area });
+    // A searched place brings its own coordinates; a shortcut chip has none,
+    // so the map falls back to the city until the user pins it.
+    await userApi.update({ location: area, ...(lat !== undefined ? { lat, lng } : {}) });
     setBusy(false);
     (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
   }
@@ -120,7 +127,7 @@ export default function LocationPicker() {
           <Feather name="search" size={17} color={colors.textDisabled} />
           <TextInput
             style={styles.input}
-            placeholder="Search area, street or landmark…"
+            placeholder={ph('Search area, street or landmark…')}
             placeholderTextColor={colors.textDisabled}
             value={q}
             onChangeText={setQ}
@@ -177,7 +184,7 @@ export default function LocationPicker() {
                 </View>
               ) : (
                 results.map((r, i) => (
-                  <Pressable key={i} onPress={() => choose(placeLabel(r))} style={styles.row}>
+                  <Pressable key={i} onPress={() => choose(placeLabel(r), Number(r.lat), Number(r.lon))} style={styles.row}>
                     <View style={styles.icon}><Feather name="map-pin" size={16} color={colors.primary} /></View>
                     <View style={{ flex: 1 }}>
                       <Text weight="semibold" style={{ fontSize: 14 }} numberOfLines={1}>{r.display_name.split(',')[0]}</Text>

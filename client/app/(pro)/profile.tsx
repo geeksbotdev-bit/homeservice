@@ -9,6 +9,8 @@ import { pro, user as userApi } from '../../src/services/api';
 import { logout } from '../../src/services/session';
 import { useLang, LANGUAGES } from '../../src/store/lang';
 import type { Cleaner } from '../../src/data/types';
+import { alertT } from '../../src/i18n';
+import { LINKS } from '../../src/links';
 
 export default function ProProfile() {
   const router = useRouter();
@@ -25,7 +27,7 @@ export default function ProProfile() {
 
   function confirmLogout() {
     if (Platform.OS === 'web') { doLogout(); return; }
-    Alert.alert('Log out?', 'You will need to sign in again.', [
+    alertT('Log out?', 'You will need to sign in again.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log Out', style: 'destructive', onPress: doLogout },
     ]);
@@ -38,9 +40,9 @@ export default function ProProfile() {
   function confirmDelete() {
     const warning = 'This permanently deletes your cleaner account, your identity documents and your job history. It cannot be undone.';
     if (Platform.OS === 'web') { if (typeof window !== 'undefined' && window.confirm(warning)) doDelete(); return; }
-    Alert.alert('Delete your account?', warning, [
+    alertT('Delete your account?', warning, [
       { text: 'Keep my account', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => Alert.alert('Are you sure?', 'This is your last chance to cancel.', [
+      { text: 'Delete', style: 'destructive', onPress: () => alertT('Are you sure?', 'This is your last chance to cancel.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete for ever', style: 'destructive', onPress: doDelete },
       ]) },
@@ -56,7 +58,7 @@ export default function ProProfile() {
       setDeleting(false);
       const msg = e?.message || 'Please try again, or contact support.';
       if (Platform.OS === 'web') { if (typeof window !== 'undefined') window.alert(msg); }
-      else Alert.alert('Could not delete the account', msg);
+      else alertT('Could not delete the account', msg);
     }
   }
 
@@ -112,15 +114,17 @@ export default function ProProfile() {
         <Card style={{ overflow: 'hidden' }}>
           {[
             { icon: 'edit-2', label: 'Edit profile & availability', onPress: () => router.push('/(pro)/edit') },
+            { icon: 'grid', label: 'My services', onPress: () => router.push('/(pro)/services') },
             { icon: 'dollar-sign', label: 'Payout method', onPress: () => router.push('/(pro)/payout') },
-            { icon: 'file-text', label: 'My Documents', onPress: () => Linking.openURL('https://example.com/pro/documents') },
-            { icon: 'bell', label: 'Notifications', onPress: () => Linking.openURL('https://example.com/pro/notifications') },
+            { icon: 'file-text', label: 'My Documents', onPress: () => router.push('/(pro)/verify') },
+            { icon: 'bell', label: 'Notifications', onPress: () => router.push('/notifications') },
             { icon: 'star', label: 'Reviews', onPress: () => router.push('/(pro)/reviews') },
             // Cleaners pick their language here too — same screen the customer uses.
             { icon: 'globe', label: `${t('Language')} · ${langNative}`, onPress: () => router.push('/language') },
-            { icon: 'help-circle', label: 'Help & Support', onPress: () => Linking.openURL('https://wa.me/923001234567') },
-            { icon: 'file-text', label: 'Terms & Conditions', onPress: () => Linking.openURL('https://withurooj.com/terms') },
-            { icon: 'shield', label: 'Privacy Policy', onPress: () => Linking.openURL('https://withurooj.com/privacy') },
+            { icon: 'help-circle', label: 'Help & Support', onPress: () => Linking.openURL(LINKS.email) },
+            { icon: 'rotate-ccw', label: 'Cancellation & Refund Policy', onPress: () => Linking.openURL(LINKS.refunds) },
+            { icon: 'file-text', label: 'Terms & Conditions', onPress: () => Linking.openURL(LINKS.terms) },
+            { icon: 'shield', label: 'Privacy Policy', onPress: () => Linking.openURL(LINKS.privacy) },
           ].map((item, i, arr) => (
             <Pressable key={item.label} style={[styles.row, i < arr.length - 1 && styles.divider]} onPress={item.onPress}>
               <Feather name={item.icon as any} size={18} color={colors.textSecondary} />
@@ -142,7 +146,7 @@ export default function ProProfile() {
           </Text>
         </Pressable>
 
-        <Text center variant="bodySm" color={colors.textDisabled}>HomeService Pro v1.0 · Pakistan</Text>
+        <Text center variant="bodySm" color={colors.textDisabled}>WithUrooj Pro v1.0 · Pakistan</Text>
       </ScrollView>
     </View>
   );

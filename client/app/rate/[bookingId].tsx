@@ -7,6 +7,7 @@ import { Text, Button, Stars } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { bookings as bookingsApi } from '../../src/services/api';
 import type { Booking } from '../../src/data/types';
+import { ph } from '../../src/i18n';
 
 const TAGS = ['Punctual', 'Thorough', 'Friendly', 'Professional', 'Great value', 'Well equipped'];
 const LABELS = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
@@ -77,7 +78,7 @@ export default function Rate() {
         <Text variant="h3" style={{ fontSize: 14, marginTop: 20, marginBottom: 10 }}>Add a review (optional)</Text>
         <TextInput
           style={styles.input}
-          placeholder="Share details of your experience…"
+          placeholder={ph('Share details of your experience…')}
           placeholderTextColor={colors.textDisabled}
           value={review}
           onChangeText={setReview}

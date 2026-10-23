@@ -9,6 +9,7 @@ import { chat, type ChatMeta } from '../../src/services/api';
 import { isPro } from '../../src/services/client';
 import { refreshUnread } from '../../src/store/unread';
 import type { ChatMessage } from '../../src/data/types';
+import { ph } from '../../src/i18n';
 
 // Role-aware quick replies — a cleaner and a customer say different things.
 const QUICK_PRO = ['On my way!', "I've arrived", 'Running late', 'Thank you!'];
@@ -121,7 +122,7 @@ export default function Chat() {
         <View style={styles.composer}>
           <TextInput
             style={styles.input}
-            placeholder="Type a message…"
+            placeholder={ph('Type a message…')}
             placeholderTextColor={colors.textDisabled}
             value={text}
             onChangeText={setText}

@@ -2,7 +2,26 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc *)",
-      "Bash(npx tsx *)"
+      "Bash(npx tsx *)",
+      "Bash(npm run *)",
+      "Bash(curl -s --max-time 25 \"https://uroojwithus.vercel.app/admin\")",
+      "Bash(curl -sI --max-time 25 \"https://uroojwithus.vercel.app/admin\")",
+      "Bash(python \"C:/Users/DELL/AppData/Local/Temp/claude/f--home-service-homeservice/02013fc2-1052-4dc4-99c1-46b2cee0805d/scratchpad/add_split.py\")",
+      "Bash(curl -s -o /dev/null -w \"bundle: %{http_code}\\\\n\" --max-time 540 \"http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable\")",
+      "Bash(node drive_app.mjs \"http://localhost:8081\")",
+      "Bash(node test_lang_api.mjs)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 4000 -State Listen | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { $p = Get-Process -Id $_ -ErrorAction SilentlyContinue; if \\($p\\) { \"$\\($p.Id\\)  $\\($p.ProcessName\\)  started $\\($p.StartTime\\)\" } })",
+      "Bash(python audit_i18n.py)",
+      "Bash(MSYS_NO_PATHCONV=1 grep -n \"icon\\\\|adaptiveIcon\\\\|favicon\\\\|splash\\\\|foregroundImage\\\\|backgroundColor\" app.json)",
+      "Bash(python make_icons.py)",
+      "Bash(python -)",
+      "Bash(MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' grep -rn \"setAddress\\\\|draft.address\" app/ src/)",
+      "Bash(MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' sed -n '60,140p' app/location.tsx)",
+      "Bash(MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' sed -n '110,140p' app/booking/confirm.tsx)",
+      "Bash(MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' sed -n '1,60p' \"app/\\(tabs\\)/index.tsx\")",
+      "Bash(MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' sed -n '49,110p' \"app/\\(tabs\\)/index.tsx\")",
+      "Bash(MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' grep -n \"setAddress\\\\|address\" src/store/booking.tsx)",
+      "Bash(MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' grep -n \"payments/session\\\\|launchUrl\\\\|openGateway\\\\|WebBrowser\\\\|payments/verify\" app/booking/payment.tsx src/services/api.ts)"
     ]
   }
 }

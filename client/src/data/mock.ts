@@ -18,7 +18,7 @@ export const SERVICES: Service[] = [
     icon: 'shower',
     gradient: ['#0B7C82', '#1DB8C2'],
     description:
-      'A thorough bathroom clean by our background-verified HomeService professionals — using eco-friendly, fragrance-free cleaning products safe for families and children.',
+      'A thorough bathroom clean by our background-verified WithUrooj professionals — using eco-friendly, fragrance-free cleaning products safe for families and children.',
     included: [
       'Toilet scrub & disinfection',
       'Tiles & grout deep cleaning',
@@ -98,7 +98,7 @@ export const SERVICES: Service[] = [
 ];
 
 export const CLEANERS: Cleaner[] = [
-  { id: 'sara', name: 'Sara Ahmad', initials: 'SA', rating: 4.9, jobs: 312, distanceKm: 1.2, bio: 'Specialist in bathroom & kitchen deep cleans. 3 years with HomeService.', preferred: true },
+  { id: 'sara', name: 'Sara Ahmad', initials: 'SA', rating: 4.9, jobs: 312, distanceKm: 1.2, bio: 'Specialist in bathroom & kitchen deep cleans. 3 years with WithUrooj.', preferred: true },
   { id: 'maria', name: 'Maria Khan', initials: 'MK', rating: 4.8, jobs: 187, distanceKm: 2.1, bio: 'Detail-focused, great with full-home cleaning.' },
   { id: 'ali', name: 'Ali Zaman', initials: 'AZ', rating: 4.7, jobs: 96, distanceKm: 3.4, bio: 'Reliable and punctual. Kitchen specialist.' },
 ];

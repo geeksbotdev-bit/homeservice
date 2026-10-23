@@ -105,9 +105,9 @@ const DICT: Record<string, { ur: string; roman: string }> = {
   'City / Area (optional)': { ur: 'شہر / علاقہ (اختیاری)', roman: 'Sheher / ilaqa (optional)' },
   'City / Area': { ur: 'شہر / علاقہ', roman: 'Sheher / ilaqa' },
   'Your name': { ur: 'آپ کا نام', roman: 'Aap ka naam' },
-  'HomeService will never call to ask for your code.': {
+  'WithUrooj will never call to ask for your code.': {
     ur: 'ہوم سروس کبھی آپ سے کوڈ نہیں پوچھے گی۔',
-    roman: 'HomeService kabhi aap se code nahi poochay gi.',
+    roman: 'WithUrooj kabhi aap se code nahi poochay gi.',
   },
   'You can change these anytime in Profile.': {
     ur: 'آپ یہ کسی بھی وقت پروفائل میں تبدیل کر سکتے ہیں۔',
@@ -149,7 +149,7 @@ const DICT: Record<string, { ur: string; roman: string }> = {
   'Cancel this booking?': { ur: 'کیا یہ بکنگ منسوخ کریں؟', roman: 'Ye booking cancel karein?' },
   'Change address': { ur: 'پتہ تبدیل کریں', roman: 'Pata tabdeel karein' },
   'Service fee': { ur: 'سروس فیس', roman: 'Service fee' },
-  'HomeService fee (5%)': { ur: 'ہوم سروس فیس (5%)', roman: 'HomeService fee (5%)' },
+  'WithUrooj fee (5%)': { ur: 'WithUrooj فیس (5%)', roman: 'WithUrooj fee (5%)' },
   'within 1 hour': { ur: '1 گھنٹے کے اندر', roman: '1 ghante ke andar' },
 
   // ── Payment ──────────────────────────────────────────────────────────
@@ -392,7 +392,7 @@ const DICT: Record<string, { ur: string; roman: string }> = {
   'home': { ur: 'گھر', roman: 'ghar' },
 
   // Service descriptions
-  'A thorough bathroom clean by our background-verified HomeService professionals — using eco-friendly, fragrance-free cleaning products safe for families and children.': {
+  'A thorough bathroom clean by our background-verified WithUrooj professionals — using eco-friendly, fragrance-free cleaning products safe for families and children.': {
     ur: 'ہمارے تصدیق شدہ پروفیشنلز کی جانب سے باتھ روم کی مکمل صفائی — ماحول دوست، بغیر خوشبو والے محفوظ کلیننگ پروڈکٹس کے ساتھ جو بچوں اور گھر والوں کے لیے محفوظ ہیں۔',
     roman: 'Hamare verified professionals ki taraf se bathroom ki mukammal safai — eco-friendly, khushbu ke baghair products jo bachon aur ghar walon ke liye mehfooz hain.',
   },
@@ -444,6 +444,225 @@ const DICT: Record<string, { ur: string; roman: string }> = {
   'Laundry & Ironing': { ur: 'کپڑے دھلائی اور استری', roman: 'Kapray dhulai aur istri' },
   'Up to 2 hours of laundry': { ur: '2 گھنٹے تک کپڑوں کا کام', roman: '2 ghante tak kapron ka kaam' },
 
+  // ── Dialogs, toasts and input placeholders (via src/i18n.ts) ────────
+  'Permission needed': { ur: 'اجازت درکار ہے', roman: 'Ijazat darkar hai' },
+  'Allow camera access to add the photo': { ur: 'تصویر شامل کرنے کے لیے کیمرے کی اجازت دیں', roman: 'Tasveer add karne ke liye camera ki ijazat dein' },
+  'Allow photo access to continue': { ur: 'جاری رکھنے کے لیے تصاویر تک رسائی دیں', roman: 'Jari rakhne ke liye photos ki ijazat dein' },
+  'Please allow photo access to set a profile picture.': { ur: 'پروفائل تصویر لگانے کے لیے تصاویر تک رسائی دیں۔', roman: 'Profile picture lagane ke liye photos ki ijazat dein.' },
+  'Are you sure?': { ur: 'کیا آپ کو یقین ہے؟', roman: 'Kya aap ko yaqeen hai?' },
+  'This is your last chance to cancel.': { ur: 'منسوخ کرنے کا یہ آخری موقع ہے۔', roman: 'Cancel karne ka ye aakhri mauqa hai.' },
+  'Log out?': { ur: 'لاگ آؤٹ کریں؟', roman: 'Log out karein?' },
+  'You will need to sign in again to book.': { ur: 'بکنگ کے لیے آپ کو دوبارہ سائن اِن کرنا ہوگا۔', roman: 'Booking ke liye dobara sign in karna hoga.' },
+  'You will need to sign in again.': { ur: 'آپ کو دوبارہ سائن اِن کرنا ہوگا۔', roman: 'Aap ko dobara sign in karna hoga.' },
+  'Delete your account?': { ur: 'اپنا اکاؤنٹ ڈیلیٹ کریں؟', roman: 'Apna account delete karein?' },
+  'Could not delete the account': { ur: 'اکاؤنٹ ڈیلیٹ نہیں ہو سکا', roman: 'Account delete nahi ho saka' },
+  'Could not send code': { ur: 'کوڈ نہیں بھیجا جا سکا', roman: 'Code nahi bheja ja saka' },
+  'Could not update the job': { ur: 'جاب اپ ڈیٹ نہیں ہو سکی', roman: 'Job update nahi ho saki' },
+  'Could not upload the image': { ur: 'تصویر اپ لوڈ نہیں ہو سکی', roman: 'Tasveer upload nahi ho saki' },
+  'Could not generate receipt': { ur: 'رسید نہیں بن سکی', roman: 'Receipt nahi ban saki' },
+  'Upload failed': { ur: 'اپ لوڈ ناکام', roman: 'Upload nakaam' },
+  'Submission failed': { ur: 'جمع کرانے میں ناکامی', roman: 'Submit karne mein nakami' },
+  'Submitted': { ur: 'جمع ہو گیا', roman: 'Jama ho gaya' },
+  'Receipt saved': { ur: 'رسید محفوظ ہو گئی', roman: 'Receipt mehfooz ho gayi' },
+  'Refund initiated': { ur: 'رقم کی واپسی شروع', roman: 'Refund shuru ho gaya' },
+  'Limit reached': { ur: 'حد پوری ہو گئی', roman: 'Had poori ho gayi' },
+  'Coming soon': { ur: 'جلد آ رہا ہے', roman: 'Jald aa raha hai' },
+  'Google sign-in': { ur: 'گوگل سائن اِن', roman: 'Google sign-in' },
+  'Signed in to your existing account': { ur: 'آپ کے موجودہ اکاؤنٹ میں سائن اِن', roman: 'Aap ke mojooda account mein sign in' },
+  'Verify your identity': { ur: 'اپنی شناخت کی تصدیق کریں', roman: 'Apni shanakht verify karein' },
+  'Complete verification to accept jobs': { ur: 'جابز قبول کرنے کے لیے تصدیق مکمل کریں', roman: 'Jobs accept karne ke liye verification mukammal karein' },
+  'Invalid CNIC': { ur: 'غلط شناختی کارڈ نمبر', roman: 'Ghalat CNIC number' },
+  'Enter a valid 13-digit CNIC number': { ur: '13 ہندسوں کا درست شناختی کارڈ نمبر درج کریں', roman: '13 digit ka sahi CNIC number darj karein' },
+  'Missing documents': { ur: 'دستاویزات نامکمل', roman: 'Dastavezat namukammal' },
+  'CNIC front photo and a selfie are required': { ur: 'شناختی کارڈ کے سامنے کی تصویر اور سیلفی ضروری ہے', roman: 'CNIC front ki tasveer aur selfie zaroori hai' },
+  'We’ll review your documents shortly': { ur: 'ہم جلد آپ کی دستاویزات کا جائزہ لیں گے', roman: 'Hum jald aap ki dastavezat ka jaiza lein ge' },
+  'Search services…': { ur: 'سروسز تلاش کریں…', roman: 'Services talash karein…' },
+  'Search area, street, landmark…': { ur: 'علاقہ، گلی یا نشانی تلاش کریں…', roman: 'Ilaqa, gali ya nishani talash karein…' },
+  'Search area, street or landmark…': { ur: 'علاقہ، گلی یا نشانی تلاش کریں…', roman: 'Ilaqa, gali ya nishani talash karein…' },
+  'e.g. Specialist in bathroom & kitchen deep cleans': { ur: 'مثلاً باتھ روم اور کچن کی گہری صفائی کے ماہر', roman: 'Masalan bathroom aur kitchen ki gehri safai ke mahir' },
+
+  // ── Screen copy: onboarding, errors, tracking, cleaner app ─────────
+  'Trusted home cleaning,\non demand.': { ur: 'قابلِ اعتماد گھریلو صفائی،\nجب چاہیں۔', roman: 'Qabil-e-etemad ghar ki safai,\njab chahein.' },
+  'Background-verified, trained professionals — booked in minutes, right from your phone.': { ur: 'تصدیق شدہ، تربیت یافتہ پروفیشنلز — چند منٹ میں آپ کے فون سے بک کریں۔', roman: 'Verified, trained professionals — chand minute mein aap ke phone se book karein.' },
+  'Verified pros you\ncan trust.': { ur: 'ایسے پروفیشنلز جن پر\nآپ بھروسہ کر سکیں۔', roman: 'Aise professionals jin par\naap bharosa kar sakein.' },
+  'Every cleaner is background-checked, trained, and rated by customers across Pakistan.': { ur: 'ہر کلینر کی جانچ پڑتال، تربیت اور کسٹمرز کی طرف سے ریٹنگ ہوتی ہے۔', roman: 'Har cleaner ki janch partal, training aur customers ki rating hoti hai.' },
+  'Book now, or\nschedule later.': { ur: 'ابھی بک کریں، یا\nبعد کے لیے شیڈول کریں۔', roman: 'Abhi book karein, ya\nbaad ke liye schedule karein.' },
+  'Track your cleaner live on the map and pay securely in PKR after the job is done.': { ur: 'نقشے پر اپنے کلینر کو لائیو دیکھیں اور کام کے بعد محفوظ طریقے سے روپے میں ادائیگی کریں۔', roman: 'Map par apne cleaner ko live dekhein aur kaam ke baad mehfooz tareeqe se PKR mein payment karein.' },
+  'Your phone number,\nplease.': { ur: 'اپنا موبائل نمبر\nدرج کریں۔', roman: 'Apna mobile number\ndarj karein.' },
+  'We\'ll send a one-time code to verify it\'s you. No password needed.': { ur: 'تصدیق کے لیے ہم ایک بار کا کوڈ بھیجیں گے۔ پاس ورڈ کی ضرورت نہیں۔', roman: 'Tasdeeq ke liye hum ek baar ka code bhejein ge. Password ki zaroorat nahi.' },
+  'Enter your number and we\'ll send a one-time code to log you in.': { ur: 'اپنا نمبر درج کریں، ہم لاگ اِن کے لیے ایک بار کا کوڈ بھیجیں گے۔', roman: 'Apna number darj karein, hum log in ke liye ek baar ka code bhejein ge.' },
+  'Standard SMS rates may apply. Valid Pakistani number required.': { ur: 'عام ایس ایم ایس چارجز لاگو ہو سکتے ہیں۔ درست پاکستانی نمبر ضروری ہے۔', roman: 'Aam SMS charges lag sakte hain. Sahi Pakistani number zaroori hai.' },
+  'Choose your account type. You can use the same number for either.': { ur: 'اپنا اکاؤنٹ ٹائپ منتخب کریں۔ دونوں کے لیے ایک ہی نمبر استعمال ہو سکتا ہے۔', roman: 'Apna account type chunein. Dono ke liye ek hi number istemal ho sakta hai.' },
+  'Just a couple of details to set up your account.': { ur: 'اکاؤنٹ بنانے کے لیے چند تفصیلات درکار ہیں۔', roman: 'Account banane ke liye chand tafseelat darkar hain.' },
+  'Verified cleaners': { ur: 'تصدیق شدہ کلینرز', roman: 'Verified cleaners' },
+  'Secure & encrypted': { ur: 'محفوظ اور خفیہ', roman: 'Mehfooz aur khufiya' },
+  'PKR payments': { ur: 'روپے میں ادائیگی', roman: 'PKR mein payment' },
+  'Incorrect code. Please check and try again.': { ur: 'کوڈ غلط ہے۔ دوبارہ چیک کر کے کوشش کریں۔', roman: 'Code ghalat hai. Dobara check kar ke koshish karein.' },
+  'This code has expired. Tap Resend to get a new one.': { ur: 'یہ کوڈ ختم ہو چکا ہے۔ نیا کوڈ لینے کے لیے ری سینڈ دبائیں۔', roman: 'Ye code khatam ho chuka hai. Naya code lene ke liye Resend dabayein.' },
+  'Too many attempts. Please wait a moment and try again.': { ur: 'بہت زیادہ کوششیں۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔', roman: 'Bohat zyada koshishein. Thori dair baad dobara koshish karein.' },
+  'Verification failed. Please try again.': { ur: 'تصدیق ناکام۔ دوبارہ کوشش کریں۔', roman: 'Tasdeeq nakaam. Dobara koshish karein.' },
+  'Could not resend the code. Please try again.': { ur: 'کوڈ دوبارہ نہیں بھیجا جا سکا۔ دوبارہ کوشش کریں۔', roman: 'Code dobara nahi bheja ja saka. Dobara koshish karein.' },
+  'Could not sign in with Google.': { ur: 'گوگل سے سائن اِن نہیں ہو سکا۔', roman: 'Google se sign in nahi ho saka.' },
+  'Could not start payment. Please try again.': { ur: 'ادائیگی شروع نہیں ہو سکی۔ دوبارہ کوشش کریں۔', roman: 'Payment shuru nahi ho saki. Dobara koshish karein.' },
+  'Payment was cancelled or failed. Please try again.': { ur: 'ادائیگی منسوخ ہوئی یا ناکام رہی۔ دوبارہ کوشش کریں۔', roman: 'Payment cancel hui ya nakaam rahi. Dobara koshish karein.' },
+  'Session expired — please sign in again.': { ur: 'سیشن ختم ہو گیا — دوبارہ سائن اِن کریں۔', roman: 'Session khatam ho gaya — dobara sign in karein.' },
+  'No internet connection. Please check your network and try again.': { ur: 'انٹرنیٹ کنکشن نہیں ہے۔ اپنا نیٹ ورک چیک کر کے دوبارہ کوشش کریں۔', roman: 'Internet connection nahi hai. Apna network check kar ke dobara koshish karein.' },
+  'Could not upload the photo': { ur: 'تصویر اپ لوڈ نہیں ہو سکی', roman: 'Tasveer upload nahi ho saki' },
+  'Please try again': { ur: 'دوبارہ کوشش کریں', roman: 'Dobara koshish karein' },
+  'Please try again.': { ur: 'دوبارہ کوشش کریں۔', roman: 'Dobara koshish karein.' },
+  'Please try again, or contact support.': { ur: 'دوبارہ کوشش کریں، یا سپورٹ سے رابطہ کریں۔', roman: 'Dobara koshish karein, ya support se rabta karein.' },
+  'Please wait…': { ur: 'براہِ کرم انتظار کریں…', roman: 'Barae meherbani intezar karein…' },
+  'Withdrawal failed. Please try again.': { ur: 'رقم نکالنے میں ناکامی۔ دوبارہ کوشش کریں۔', roman: 'Raqam nikalne mein nakami. Dobara koshish karein.' },
+  'Booking confirmed': { ur: 'بکنگ کی تصدیق ہو گئی', roman: 'Booking confirm ho gayi' },
+  'Booking cancelled': { ur: 'بکنگ منسوخ ہو گئی', roman: 'Booking cancel ho gayi' },
+  'Cleaner on the way': { ur: 'کلینر راستے میں ہے', roman: 'Cleaner raaste mein hai' },
+  'Cleaning in progress': { ur: 'صفائی جاری ہے', roman: 'Safai jari hai' },
+  'Live tracking begins when the cleaner sets off': { ur: 'کلینر کے روانہ ہوتے ہی لائیو ٹریکنگ شروع ہو جائے گی', roman: 'Cleaner ke rawana hote hi live tracking shuru ho jaye gi' },
+  'This will cancel your booking. This action cannot be undone.': { ur: 'اس سے آپ کی بکنگ منسوخ ہو جائے گی۔ یہ عمل واپس نہیں ہو سکتا۔', roman: 'Is se aap ki booking cancel ho jaye gi. Ye amal wapas nahi ho sakta.' },
+  'Sending your request to cleaners nearby…': { ur: 'آپ کی درخواست قریبی کلینرز کو بھیجی جا رہی ہے…', roman: 'Aap ki request qareebi cleaners ko bheji ja rahi hai…' },
+  'Waiting for a cleaner to accept…': { ur: 'کلینر کے قبول کرنے کا انتظار ہے…', roman: 'Cleaner ke accept karne ka intezar hai…' },
+  'Notifying available cleaners…': { ur: 'دستیاب کلینرز کو اطلاع دی جا رہی ہے…', roman: 'Dastyab cleaners ko ittela di ja rahi hai…' },
+  'Payment complete · Your cleaner is on the way': { ur: 'ادائیگی مکمل · آپ کا کلینر راستے میں ہے', roman: 'Payment mukammal · Aap ka cleaner raaste mein hai' },
+  'You\'ll be notified the moment a cleaner accepts. They\'ll arrive within about an hour.': { ur: 'کلینر کے قبول کرتے ہی آپ کو اطلاع مل جائے گی۔ وہ تقریباً ایک گھنٹے میں پہنچ جائیں گے۔', roman: 'Cleaner ke accept karte hi aap ko ittela mil jaye gi. Wo taqreeban ek ghante mein pohanch jayein ge.' },
+  'Pick a date above': { ur: 'اوپر سے تاریخ منتخب کریں', roman: 'Upar se date chunein' },
+  'Select a time to continue': { ur: 'جاری رکھنے کے لیے وقت منتخب کریں', roman: 'Jari rakhne ke liye time chunein' },
+  'Confirm Schedule': { ur: 'شیڈول کی تصدیق کریں', roman: 'Schedule confirm karein' },
+  'Instant booking': { ur: 'فوری بکنگ', roman: 'Fori booking' },
+  'Immediate booking': { ur: 'فوری بکنگ', roman: 'Fori booking' },
+  'Card payments are processed securely by Bank Alfalah. An invoice is generated after payment.': { ur: 'کارڈ ادائیگیاں بینک الفلاح کے ذریعے محفوظ طریقے سے ہوتی ہیں۔ ادائیگی کے بعد رسید بن جاتی ہے۔', roman: 'Card payments Bank Alfalah ke zariye mehfooz tareeqe se hoti hain. Payment ke baad invoice ban jati hai.' },
+  'Debit Card': { ur: 'ڈیبٹ کارڈ', roman: 'Debit Card' },
+  'Your location': { ur: 'آپ کا مقام', roman: 'Aap ki location' },
+  'Current location': { ur: 'موجودہ مقام', roman: 'Mojooda location' },
+  'Detecting your location…': { ur: 'آپ کا مقام معلوم کیا جا رہا ہے…', roman: 'Aap ki location maloom ki ja rahi hai…' },
+  'Could not get your location. Please pick an area below.': { ur: 'آپ کا مقام معلوم نہیں ہو سکا۔ نیچے سے علاقہ منتخب کریں۔', roman: 'Aap ki location maloom nahi ho saki. Neeche se ilaqa chunein.' },
+  'Location permission denied. Please allow access or pick an area below.': { ur: 'مقام کی اجازت نہیں ملی۔ اجازت دیں یا نیچے سے علاقہ منتخب کریں۔', roman: 'Location ki ijazat nahi mili. Ijazat dein ya neeche se ilaqa chunein.' },
+  'Location access is blocked in your browser/phone settings.': { ur: 'آپ کی براؤزر یا فون سیٹنگز میں مقام کی اجازت بند ہے۔', roman: 'Aap ki browser ya phone settings mein location band hai.' },
+  'Use my current location': { ur: 'میرا موجودہ مقام استعمال کریں', roman: 'Mera mojooda location istemal karein' },
+  'Move the pin to your location': { ur: 'پن کو اپنے مقام پر لے جائیں', roman: 'Pin ko apni location par le jayein' },
+  'Set location': { ur: 'مقام مقرر کریں', roman: 'Location set karein' },
+  'You are online — receiving job requests': { ur: 'آپ آن لائن ہیں — جاب کی درخواستیں آ رہی ہیں', roman: 'Aap online hain — job requests aa rahi hain' },
+  'You are offline — no new jobs': { ur: 'آپ آف لائن ہیں — نئی جابز نہیں', roman: 'Aap offline hain — nayi jobs nahi' },
+  'Receiving new job requests': { ur: 'نئی جاب درخواستیں موصول ہو رہی ہیں', roman: 'Nayi job requests mil rahi hain' },
+  'Not receiving new jobs': { ur: 'نئی جابز موصول نہیں ہو رہیں', roman: 'Nayi jobs nahi mil rahin' },
+  'Address shared after you accept': { ur: 'قبول کرنے کے بعد پتہ ظاہر ہوگا', roman: 'Accept karne ke baad pata zahir hoga' },
+  'No address provided': { ur: 'کوئی پتہ فراہم نہیں کیا گیا', roman: 'Koi pata faraham nahi kiya gaya' },
+  'Upload your CNIC and a selfie to start accepting jobs.': { ur: 'جابز قبول کرنے کے لیے اپنا شناختی کارڈ اور سیلفی اپ لوڈ کریں۔', roman: 'Jobs accept karne ke liye apna CNIC aur selfie upload karein.' },
+  'Verification under review': { ur: 'تصدیق زیرِ غور ہے', roman: 'Verification zer-e-ghaur hai' },
+  'Verification rejected': { ur: 'تصدیق مسترد ہو گئی', roman: 'Verification mustarad ho gayi' },
+  'Tap to review and re-submit your documents.': { ur: 'دستاویزات دوبارہ دیکھنے اور بھیجنے کے لیے دبائیں۔', roman: 'Dastavezat dobara dekhne aur bhejne ke liye dabayein.' },
+  'We’re reviewing your documents. You’ll be notified once approved.': { ur: 'ہم آپ کی دستاویزات کا جائزہ لے رہے ہیں۔ منظوری پر آپ کو اطلاع دی جائے گی۔', roman: 'Hum aap ki dastavezat ka jaiza le rahe hain. Manzoori par aap ko ittela di jaye gi.' },
+  'Verification was rejected. Please re-submit clear documents.': { ur: 'تصدیق مسترد ہو گئی۔ واضح دستاویزات دوبارہ بھیجیں۔', roman: 'Verification mustarad ho gayi. Wazeh dastavezat dobara bhejein.' },
+  'Under review — you’ll be notified once approved. You can resubmit below if needed.': { ur: 'زیرِ غور — منظوری پر اطلاع دی جائے گی۔ ضرورت ہو تو نیچے سے دوبارہ بھیجیں۔', roman: 'Zer-e-ghaur — manzoori par ittela di jaye gi. Zaroorat ho to neeche se dobara bhejein.' },
+  'Verify your identity to start accepting jobs. Upload a clear photo of your CNIC and a selfie. Your documents are private and used only for verification.': { ur: 'جابز قبول کرنے کے لیے اپنی شناخت کی تصدیق کریں۔ شناختی کارڈ کی واضح تصویر اور سیلفی اپ لوڈ کریں۔ آپ کی دستاویزات نجی ہیں اور صرف تصدیق کے لیے استعمال ہوتی ہیں۔', roman: 'Jobs accept karne ke liye apni shanakht verify karein. CNIC ki wazeh tasveer aur selfie upload karein. Aap ki dastavezat niji hain aur sirf verification ke liye istemal hoti hain.' },
+  'No balance': { ur: 'کوئی رقم نہیں', roman: 'Koi raqam nahi' },
+  'Nothing to withdraw': { ur: 'نکالنے کے لیے کچھ نہیں', roman: 'Nikalne ke liye kuch nahi' },
+  'No balance available to withdraw yet.': { ur: 'ابھی نکالنے کے لیے کوئی رقم دستیاب نہیں۔', roman: 'Abhi nikalne ke liye koi raqam dastyab nahi.' },
+  'Add a payout method first (Profile → Payout method).': { ur: 'پہلے ادائیگی کا طریقہ شامل کریں (پروفائل → ادائیگی کا طریقہ)۔', roman: 'Pehle payout method add karein (Profile → Payout method).' },
+  'Payouts go to your saved account · manage in Profile → Payout method': { ur: 'ادائیگی آپ کے محفوظ اکاؤنٹ میں جائے گی · پروفائل → ادائیگی کا طریقہ', roman: 'Payout aap ke saved account mein jaye ga · Profile → Payout method' },
+  'Your earnings are transferred to the account you add here. Add your bank, Easypaisa or JazzCash.': { ur: 'آپ کی کمائی اسی اکاؤنٹ میں بھیجی جائے گی جو آپ یہاں شامل کریں گے۔ بینک، ایزی پیسہ یا جاز کیش شامل کریں۔', roman: 'Aap ki kamai usi account mein bheji jaye gi jo aap yahan add karein ge. Bank, Easypaisa ya JazzCash add karein.' },
+  'No payout account yet. Add where you’d like to receive your earnings.': { ur: 'ابھی کوئی اکاؤنٹ نہیں۔ بتائیں آپ کمائی کہاں وصول کرنا چاہتے ہیں۔', roman: 'Abhi koi account nahi. Batayein aap kamai kahan lena chahte hain.' },
+  'Job started': { ur: 'جاب شروع ہو گئی', roman: 'Job shuru ho gayi' },
+  'Job completed': { ur: 'جاب مکمل ہو گئی', roman: 'Job mukammal ho gayi' },
+  'Good luck!': { ur: 'بہترین!', roman: 'Behtareen!' },
+  'Nice work — the customer has been notified': { ur: 'شاباش — کسٹمر کو اطلاع دے دی گئی ہے', roman: 'Shabash — customer ko ittela de di gayi hai' },
+  'To customer': { ur: 'کسٹمر کی طرف', roman: 'Customer ki taraf' },
+  'Keep my account': { ur: 'میرا اکاؤنٹ رہنے دیں', roman: 'Mera account rehne dein' },
+  'Delete for ever': { ur: 'ہمیشہ کے لیے ڈیلیٹ کریں', roman: 'Hamesha ke liye delete karein' },
+  'This permanently deletes your account, bookings, addresses and payment methods. It cannot be undone.': { ur: 'اس سے آپ کا اکاؤنٹ، بکنگز، پتے اور ادائیگی کے طریقے ہمیشہ کے لیے ختم ہو جائیں گے۔ یہ واپس نہیں ہو سکتا۔', roman: 'Is se aap ka account, bookings, patay aur payment methods hamesha ke liye khatam ho jayein ge. Ye wapas nahi ho sakta.' },
+  'This permanently deletes your cleaner account, your identity documents and your job history. It cannot be undone.': { ur: 'اس سے آپ کا کلینر اکاؤنٹ، شناختی دستاویزات اور جاب کی تاریخ ہمیشہ کے لیے ختم ہو جائے گی۔ یہ واپس نہیں ہو سکتا۔', roman: 'Is se aap ka cleaner account, shanakhti dastavezat aur job history hamesha ke liye khatam ho jaye gi. Ye wapas nahi ho sakta.' },
+  'This number is registered as a cleaner': { ur: 'یہ نمبر کلینر کے طور پر رجسٹرڈ ہے', roman: 'Ye number cleaner ke tor par registered hai' },
+  'This number is registered as a customer': { ur: 'یہ نمبر کسٹمر کے طور پر رجسٹرڈ ہے', roman: 'Ye number customer ke tor par registered hai' },
+  'This account is registered as a cleaner': { ur: 'یہ اکاؤنٹ کلینر کے طور پر رجسٹرڈ ہے', roman: 'Ye account cleaner ke tor par registered hai' },
+  'This account is registered as a customer': { ur: 'یہ اکاؤنٹ کسٹمر کے طور پر رجسٹرڈ ہے', roman: 'Ye account customer ke tor par registered hai' },
+  'New message': { ur: 'نیا پیغام', roman: 'Naya message' },
+  'You have a new message': { ur: 'آپ کے لیے نیا پیغام ہے', roman: 'Aap ke liye naya message hai' },
+  'No services available yet.': { ur: 'ابھی کوئی سروس دستیاب نہیں۔', roman: 'Abhi koi service dastyab nahi.' },
+  'Finding your cleaner': { ur: 'آپ کا کلینر تلاش کیا جا رہا ہے', roman: 'Aap ka cleaner dhoonda ja raha hai' },
+  'Say hello': { ur: 'سلام کہیں', roman: 'Salam kahein' },
+  'Account number / IBAN': { ur: 'اکاؤنٹ نمبر / آئی بین', roman: 'Account number / IBAN' },
+  'Mobile number': { ur: 'موبائل نمبر', roman: 'Mobile number' },
+  'Card number': { ur: 'کارڈ نمبر', roman: 'Card number' },
+  'Very good': { ur: 'بہت اچھا', roman: 'Bohat acha' },
+  'On my way!': { ur: 'میں راستے میں ہوں!', roman: 'Main raaste mein hoon!' },
+  'The gate is open': { ur: 'گیٹ کھلا ہے', roman: 'Gate khula hai' },
+  'Please call me': { ur: 'براہِ کرم مجھے کال کریں', roman: 'Mujhe call karein' },
+  'Thank you!': { ur: 'شکریہ!', roman: 'Shukriya!' },
+  'Where are you?': { ur: 'آپ کہاں ہیں؟', roman: 'Aap kahan hain?' },
+  'How long will it take?': { ur: 'کتنا وقت لگے گا؟', roman: 'Kitna waqt lage ga?' },
+
+  'Already have an account?': { ur: 'پہلے سے اکاؤنٹ ہے؟', roman: 'Pehle se account hai?' },
+  'New to WithUrooj?': { ur: 'WithUrooj پر نئے ہیں؟', roman: 'WithUrooj par naye hain?' },
+  'By continuing, you agree to our': { ur: 'جاری رکھنے سے آپ ہماری', roman: 'Jari rakhne se aap hamari' },
+  'Terms of Service': { ur: 'سروس کی شرائط', roman: 'Service ki shurait' },
+  'and': { ur: 'اور', roman: 'aur' },
+  // ── Status badges, category chips and row labels ───────────────────
+  'Cleaning': { ur: 'صفائی', roman: 'Safai' },
+  'Laundry': { ur: 'کپڑے دھلائی', roman: 'Kapray dhulai' },
+  'Plumbing': { ur: 'پلمبنگ', roman: 'Plumbing' },
+  'Electrician': { ur: 'الیکٹریشن', roman: 'Electrician' },
+  'AC Service': { ur: 'اے سی سروس', roman: 'AC service' },
+  'Pest Control': { ur: 'کیڑے مار سروس', roman: 'Pest control' },
+  'Upcoming': { ur: 'آنے والی', roman: 'Aane wali' },
+  'Past': { ur: 'گزشتہ', roman: 'Guzishta' },
+  'Payment pending': { ur: 'ادائیگی باقی', roman: 'Payment baqi' },
+  'Confirmed': { ur: 'تصدیق شدہ', roman: 'Confirm ho gayi' },
+  'On the Way': { ur: 'راستے میں', roman: 'Raaste mein' },
+  'In Progress': { ur: 'جاری ہے', roman: 'Jari hai' },
+  'Completed': { ur: 'مکمل', roman: 'Mukammal' },
+  'Cancelled': { ur: 'منسوخ', roman: 'Mansookh' },
+  'Default': { ur: 'ڈیفالٹ', roman: 'Default' },
+  'Bank Transfer': { ur: 'بینک ٹرانسفر', roman: 'Bank transfer' },
+  'Office': { ur: 'دفتر', roman: 'Daftar' },
+  'Online': { ur: 'آن لائن', roman: 'Online' },
+  'Offline': { ur: 'آف لائن', roman: 'Offline' },
+  'Company service fee (30%)': { ur: 'کمپنی سروس فیس (30%)', roman: 'Company service fee (30%)' },
+  'jobs completed': { ur: 'مکمل شدہ جابز', roman: 'mukammal jobs' },
+  'Withdraw': { ur: 'رقم نکالیں', roman: 'Raqam nikalein' },
+  'Available balance': { ur: 'دستیاب رقم', roman: 'Dastyab raqam' },
+  'Available jobs ({n})': { ur: 'دستیاب جابز ({n})', roman: 'Dastyab jobs ({n})' },
+  'New requests ({n})': { ur: 'نئی درخواستیں ({n})', roman: 'Nayi requests ({n})' },
+  'Active jobs ({n})': { ur: 'فعال جابز ({n})', roman: 'Active jobs ({n})' },
+  'How will you use WithUrooj?': { ur: 'آپ WithUrooj کیسے استعمال کریں گے؟', roman: 'Aap WithUrooj kaise use karenge?' },
+  'I\'m a Customer': { ur: 'میں کسٹمر ہوں', roman: 'Main customer hoon' },
+  'I\'m a Cleaner': { ur: 'میں کلینر ہوں', roman: 'Main cleaner hoon' },
+  'Book trusted cleaners for your home — pay after the job.': { ur: 'اپنے گھر کے لیے بھروسہ مند کلینر بک کریں — کام کے بعد ادائیگی کریں۔', roman: 'Apne ghar ke liye bharosamand cleaner book karein — kaam ke baad payment karein.' },
+  'Get job requests near you, track work, and earn in PKR.': { ur: 'اپنے قریب جاب کی درخواستیں حاصل کریں، کام ٹریک کریں اور روپے میں کمائیں۔', roman: 'Apne qareeb job requests hasil karein, kaam track karein aur rupay mein kamayein.' },
+  'Resend code in': { ur: 'کوڈ دوبارہ بھیجیں', roman: 'Code dobara bhejein' },
+  'No conversations yet. Chats appear once you accept a job.': { ur: 'ابھی کوئی گفتگو نہیں۔ جاب قبول کرنے پر چیٹ یہاں آئے گی۔', roman: 'Abhi koi guftagu nahi. Job accept karne par chat yahan aayegi.' },
+  'Couldn\'t load services. Check your connection.': { ur: 'سروسز لوڈ نہیں ہو سکیں۔ اپنا انٹرنیٹ چیک کریں۔', roman: 'Services load nahi ho sakin. Apna internet check karein.' },
+  'Your booking session was reset. Please pick a service to start again.': { ur: 'آپ کا بکنگ سیشن ری سیٹ ہو گیا۔ دوبارہ شروع کرنے کے لیے سروس منتخب کریں۔', roman: 'Aapka booking session reset ho gaya. Dobara shuru karne ke liye service select karein.' },
+  'Posted for': { ur: 'اس وقت کے لیے', roman: 'Is waqt ke liye' },
+  'of confirmation': { ur: 'تصدیق کے بعد', roman: 'Tasdeeq ke baad' },
+  'Your cleaner will arrive': { ur: 'آپ کا کلینر پہنچے گا', roman: 'Aapka cleaner pohnchega' },
+  'Supplies incl.': { ur: 'سامان شامل', roman: 'Saman shamil' },
+  'Refund of': { ur: 'رقم کی واپسی', roman: 'Raqam ki wapsi' },
+  'What’s included': { ur: 'کیا شامل ہے', roman: 'Kya shamil hai' },
+  'e.g. Ahmed Ali': { ur: 'مثلاً احمد علی', roman: 'Misal ke taur par Ahmed Ali' },
+  'e.g. Fatima Ahmed': { ur: 'مثلاً فاطمہ احمد', roman: 'Misal ke taur par Fatima Ahmed' },
+  'e.g. Meezan Bank': { ur: 'مثلاً میزان بینک', roman: 'Misal ke taur par Meezan Bank' },
+  'House 42, Street 7, Block D': { ur: 'مکان 42، گلی 7، بلاک ڈی', roman: 'Makan 42, Gali 7, Block D' },
+  'DHA Phase 5, Lahore': { ur: 'ڈی ایچ اے فیز 5، لاہور', roman: 'DHA Phase 5, Lahore' },
+  'WithUrooj v1.0 · Pakistan': { ur: 'WithUrooj v1.0 · پاکستان', roman: 'WithUrooj v1.0 · Pakistan' },
+  'WithUrooj Pro v1.0 · Pakistan': { ur: 'WithUrooj Pro v1.0 · پاکستان', roman: 'WithUrooj Pro v1.0 · Pakistan' },
+  'Billed To': { ur: 'بل وصول کنندہ', roman: 'Bill wasool kuninda' },
+  'Total Paid': { ur: 'کل ادا شدہ', roman: 'Kul ada shuda' },
+  'Transaction ID': { ur: 'ٹرانزیکشن آئی ڈی', roman: 'Transaction ID' },
+  'Thank you for choosing WithUrooj. This is a computer-generated receipt.': { ur: 'WithUrooj کو منتخب کرنے کا شکریہ۔ یہ کمپیوٹر سے تیار کردہ رسید ہے۔', roman: 'WithUrooj ko muntakhib karne ka shukriya. Yeh computer se tayar karda raseed hai.' },
+  'is being processed to your payment method — arrives within 1 week (30% cancellation fee applied).': { ur: 'آپ کے پیمنٹ طریقے پر بھیجی جا رہی ہے — ایک ہفتے میں پہنچ جائے گی (30% کینسلیشن فیس کاٹی گئی)۔', roman: 'aapke payment tareeqe par bheji ja rahi hai — aik hafte mein pohnch jayegi (30% cancellation fee kaati gayi).' },
+  'Cleaner': { ur: 'کلینر', roman: 'Cleaner' },
+  'Gulshan-e-Iqbal, Karachi': { ur: 'گلشنِ اقبال، کراچی', roman: 'Gulshan-e-Iqbal, Karachi' },
+  'House 12, Street 4, Block B': { ur: 'مکان 12، گلی 4، بلاک بی', roman: 'Makan 12, Gali 4, Block B' },
+  'My services': { ur: 'میری سروسز', roman: 'Meri services' },
+  'PAID': { ur: 'ادا شدہ', roman: 'Ada shuda' },
+  'Invoice': { ur: 'انوائس', roman: 'Invoice' },
+  'Date': { ur: 'تاریخ', roman: 'Tareekh' },
+  'Currency': { ur: 'کرنسی', roman: 'Currency' },
+  'Proprietor': { ur: 'مالک', roman: 'Malik' },
+  'NTN': { ur: 'این ٹی این', roman: 'NTN' },
+  'Description': { ur: 'تفصیل', roman: 'Tafseel' },
+  'Amount': { ur: 'رقم', roman: 'Raqam' },
+  'Service provided by': { ur: 'سروس فراہم کنندہ', roman: 'Service faraham kuninda' },
+  'Thank you for choosing WithUrooj. This is a computer-generated receipt and needs no signature.': { ur: 'WithUrooj کو منتخب کرنے کا شکریہ۔ یہ کمپیوٹر سے تیار کردہ رسید ہے، دستخط کی ضرورت نہیں۔', roman: 'WithUrooj ko muntakhib karne ka shukriya. Yeh computer se tayar karda raseed hai, dastkhat ki zaroorat nahi.' },
   // ── Review tags ──────────────────────────────────────────────────────
   'Punctual': { ur: 'وقت کا پابند', roman: 'Waqt ka paband' },
   'Thorough': { ur: 'مکمل اور باریک بین', roman: 'Mukammal kaam' },
@@ -483,24 +702,90 @@ export function format(key: string, vars: Record<string, string | number>, lang:
     (vars[name] !== undefined ? String(vars[name]) : whole));
 }
 
-function persist(l: Lang) {
+/**
+ * The language belongs to the account, not the handset: it is cached under a
+ * per-user key so two people sharing a phone don't inherit each other's choice,
+ * and signed-out screens (welcome, sign-up, OTP) always stay English.
+ */
+let currentUserId: string | null = null;
+const userKey = (id: string) => `${KEY}:${id}`;
+const isLang = (v: unknown): v is Lang => v === 'en' || v === 'ur' || v === 'roman';
+
+async function read(k: string): Promise<string | null> {
   try {
-    if (isWeb) { if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, l); }
-    else AsyncStorage.setItem(KEY, l).catch(() => {});
+    return isWeb
+      ? (typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null)
+      : await AsyncStorage.getItem(k);
+  } catch { return null; }
+}
+
+function write(k: string, v: string) {
+  try {
+    if (isWeb) { if (typeof localStorage !== 'undefined') localStorage.setItem(k, v); }
+    else AsyncStorage.setItem(k, v).catch(() => {});
   } catch { /* ignore */ }
 }
 
+function persist(l: Lang) {
+  if (currentUserId) write(userKey(currentUserId), l);
+}
+
+const LAST_USER = `${KEY}:last-user`;
+
 /**
- * Load the saved language before the first render. Native storage is async, so
- * this must be awaited at startup (like the session) or the app flashes English.
+ * Startup. Someone who is not signed in always sees English, so a first run and
+ * the whole sign-up flow are in English no matter what the last person on this
+ * device chose.
+ *
+ * For a signed-in user we apply the cached choice straight away — `/me` may be
+ * slow or offline, and waiting for it would flash English first. The server
+ * answer then confirms (or corrects) it through adoptUserLang.
  */
-export async function restoreLang(): Promise<void> {
-  try {
-    const v = isWeb
-      ? (typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null)
-      : await AsyncStorage.getItem(KEY);
-    if (v === 'en' || v === 'ur' || v === 'roman') current = v;
-  } catch { /* keep English */ }
+export async function restoreLang(authed = false): Promise<void> {
+  current = 'en';
+  currentUserId = null;
+  if (!authed) return;
+  const id = await read(LAST_USER);
+  if (!id) return;
+  currentUserId = id;
+  const cached = await read(userKey(id));
+  if (isLang(cached)) current = cached;
+}
+
+/**
+ * Called once the session is known. `serverLang` is what the account carries
+ * (authoritative, follows the user across devices); the per-user cache covers
+ * the offline case. Either way an unknown value means English.
+ */
+export async function adoptUserLang(userId: string, serverLang?: string): Promise<Lang> {
+  currentUserId = userId;
+  write(LAST_USER, userId);   // lets the next launch apply it before /me answers
+  let next: Lang = 'en';
+  if (isLang(serverLang)) {
+    next = serverLang;
+    write(userKey(userId), next);           // refresh the offline cache
+  } else {
+    const cached = await read(userKey(userId));
+    if (isLang(cached)) next = cached;
+  }
+  if (next !== current) {
+    current = next;
+    listeners.forEach((fn) => fn(next));
+  }
+  return next;
+}
+
+let syncToAccount: ((l: Lang) => void) | null = null;
+/** The root layout supplies the "save to account" call (avoids an import cycle). */
+export function setLangSync(fn: ((l: Lang) => void) | null) { syncToAccount = fn; }
+
+/** Signing out returns the app to English for the next person on this device. */
+export function resetLang(): void {
+  currentUserId = null;
+  if (current !== 'en') {
+    current = 'en';
+    listeners.forEach((fn) => fn('en'));
+  }
 }
 
 interface Ctx {
@@ -528,6 +813,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     current = l;
     persist(l);
     listeners.forEach((fn) => fn(l));
+    // Save it on the account too, so the choice follows the user to any device.
+    // Registered by the root layout to keep this store free of API imports.
+    if (currentUserId) syncToAccount?.(l);
   };
 
   return (

@@ -7,6 +7,7 @@ import { Text, Button, Card, NavBar } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { user as userApi } from '../../src/services/api';
 import type { PaymentMethod } from '../../src/data/types';
+import { alertT } from '../../src/i18n';
 
 const ICONS: Record<string, any> = { bank: 'home', easypaisa: 'smartphone', jazzcash: 'smartphone', card: 'credit-card' };
 
@@ -19,8 +20,16 @@ export default function ProPayout() {
   }, []));
 
   async function remove(id: string) {
+    const before = methods;
     setMethods((m) => (m ? m.filter((x) => x.id !== id) : m));
-    await userApi.deletePayment(id).catch(() => {});
+    try {
+      await userApi.deletePayment(id);
+    } catch (e: any) {
+      // Put it back: a payout account that only looks deleted is money going
+      // to the wrong place.
+      setMethods(before);
+      alertT('Could not remove the account', e?.message || 'Please try again.');
+    }
   }
 
   return (

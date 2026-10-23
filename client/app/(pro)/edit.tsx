@@ -6,6 +6,7 @@ import { Text, Button, NavBar } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { pro } from '../../src/services/api';
 import type { Cleaner } from '../../src/data/types';
+import { ph } from '../../src/i18n';
 
 export default function ProEdit() {
   const router = useRouter();
@@ -37,10 +38,10 @@ export default function ProEdit() {
       <NavBar title="Edit Profile" />
       <ScrollView contentContainerStyle={{ padding: 20, gap: 18 }} keyboardShouldPersistTaps="handled">
         <Field label="Full name">
-          <TextInput style={styles.input} placeholder="Your name" placeholderTextColor={colors.textDisabled} value={name} onChangeText={setName} editable={loaded} />
+          <TextInput style={styles.input} placeholder={ph('Your name')} placeholderTextColor={colors.textDisabled} value={name} onChangeText={setName} editable={loaded} />
         </Field>
         <Field label="Bio / specialties">
-          <TextInput style={[styles.input, styles.area]} placeholder="e.g. Specialist in bathroom & kitchen deep cleans" placeholderTextColor={colors.textDisabled} value={bio} onChangeText={setBio} editable={loaded} multiline textAlignVertical="top" />
+          <TextInput style={[styles.input, styles.area]} placeholder={ph('e.g. Specialist in bathroom & kitchen deep cleans')} placeholderTextColor={colors.textDisabled} value={bio} onChangeText={setBio} editable={loaded} multiline textAlignVertical="top" />
         </Field>
 
         <View style={styles.switchRow}>

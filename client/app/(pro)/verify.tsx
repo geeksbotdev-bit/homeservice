@@ -8,6 +8,7 @@ import { Text, Button, Card, NavBar } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
 import { pro } from '../../src/services/api';
 import { showToast } from '../../src/store/toast';
+import { toastT } from '../../src/i18n';
 
 type Slot = 'idFront' | 'idBack' | 'selfie';
 
@@ -29,7 +30,7 @@ export default function Verify() {
       const perm = camera
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted && Platform.OS !== 'web') { showToast('Permission needed', 'Allow photo access to continue'); return; }
+      if (!perm.granted && Platform.OS !== 'web') { toastT('Permission needed', 'Allow photo access to continue'); return; }
       const res = camera
         ? await ImagePicker.launchCameraAsync({ base64: true, quality: 0.5 })
         : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.5 });
@@ -41,7 +42,7 @@ export default function Verify() {
       const { url } = await pro.uploadImage(dataUrl);
       setImgs((p) => ({ ...p, [slot]: url }));
     } catch {
-      showToast('Upload failed', 'Could not upload the image');
+      toastT('Upload failed', 'Could not upload the image');
     } finally {
       setBusy(null);
     }
@@ -49,15 +50,15 @@ export default function Verify() {
 
   async function submit() {
     const digits = cnic.replace(/\D/g, '');
-    if (digits.length !== 13) { showToast('Invalid CNIC', 'Enter a valid 13-digit CNIC number'); return; }
-    if (!imgs.idFront || !imgs.selfie) { showToast('Missing documents', 'CNIC front photo and a selfie are required'); return; }
+    if (digits.length !== 13) { toastT('Invalid CNIC', 'Enter a valid 13-digit CNIC number'); return; }
+    if (!imgs.idFront || !imgs.selfie) { toastT('Missing documents', 'CNIC front photo and a selfie are required'); return; }
     setSubmitting(true);
     try {
       await pro.submitVerification({ cnic: digits, idFront: imgs.idFront, idBack: imgs.idBack ?? undefined, selfie: imgs.selfie });
-      showToast('Submitted', 'We’ll review your documents shortly');
+      toastT('Submitted', 'We’ll review your documents shortly');
       router.back();
     } catch (e: any) {
-      showToast('Submission failed', e?.message || 'Please try again');
+      toastT('Submission failed', e?.message || 'Please try again');
     } finally {
       setSubmitting(false);
     }

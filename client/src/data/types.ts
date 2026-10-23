@@ -27,6 +27,10 @@ export interface Service {
   included: string[];
   addOns: AddOn[];
   unitNoun: string;           // "bathroom"
+  /** Cleaning work is quoted after the job is sized, so it carries no price. */
+  quoteOnly?: boolean;
+  /** The heading this service sits under in the client's category sheet. */
+  sheetGroup?: string;
 }
 
 export interface Cleaner {
@@ -105,6 +109,7 @@ export interface AppNotification {
 export type Role = 'client' | 'professional' | 'pro';
 
 export interface User {
+  id?: string;
   name: string;
   phone: string;
   email?: string;
@@ -113,6 +118,11 @@ export interface User {
   avatarUrl?: string;
   gender?: string;
   dob?: string;
+  /** Language saved on the account: it follows the user across devices. */
+  lang?: 'en' | 'ur' | 'roman';
+  /** Last detected position, used to draw a real map instead of a placeholder. */
+  lat?: number;
+  lng?: number;
   addresses: Address[];
   paymentMethods: PaymentMethod[];
 }
@@ -123,6 +133,9 @@ export interface Address {
   line1: string;
   area: string;
   isDefault?: boolean;
+  /** Map pin for this address, when one was detected or chosen. */
+  lat?: number;
+  lng?: number;
 }
 
 export interface PaymentMethod {

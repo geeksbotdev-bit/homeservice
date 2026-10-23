@@ -10,6 +10,8 @@ import { logout } from '../../src/services/session';
 import { useLang, LANGUAGES } from '../../src/store/lang';
 import { initials } from '../../src/utils';
 import type { User, Cleaner } from '../../src/data/types';
+import { LINKS } from '../../src/links';
+import { alertT, toastT } from '../../src/i18n';
 
 export default function Profile() {
   const router = useRouter();
@@ -25,12 +27,23 @@ export default function Profile() {
   }, []);
   useFocusEffect(load);
 
-  async function removeAddress(id: string) { setMe((m) => m ? { ...m, addresses: m.addresses.filter((a) => a.id !== id) } : m); await userApi.deleteAddress(id).catch(() => {}); load(); }
-  async function removePayment(id: string) { setMe((m) => m ? { ...m, paymentMethods: m.paymentMethods.filter((p) => p.id !== id) } : m); await userApi.deletePayment(id).catch(() => {}); load(); }
+  // The row disappears straight away, but if the server refuses it has to
+  // come back — otherwise the address looks deleted and returns on next launch.
+  async function removeAddress(id: string) {
+    const before = me;
+    setMe((m) => (m ? { ...m, addresses: m.addresses.filter((a) => a.id !== id) } : m));
+    try {
+      await userApi.deleteAddress(id);
+      load();
+    } catch (e: any) {
+      setMe(before);
+      alertT('Could not delete the address', e?.message || 'Please try again.');
+    }
+  }
 
   function confirmLogout() {
     if (Platform.OS === 'web') { doLogout(); return; }
-    Alert.alert('Log out?', 'You will need to sign in again to book.', [
+    alertT('Log out?', 'You will need to sign in again to book.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log Out', style: 'destructive', onPress: doLogout },
     ]);
@@ -43,12 +56,12 @@ export default function Profile() {
   function confirmDelete() {
     const warning = 'This permanently deletes your account, bookings, addresses and payment methods. It cannot be undone.';
     if (Platform.OS === 'web') { if (typeof window !== 'undefined' && window.confirm(warning)) doDelete(); return; }
-    Alert.alert('Delete your account?', warning, [
+    alertT('Delete your account?', warning, [
       { text: 'Keep my account', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => Alert.alert('Are you sure?', 'This is your last chance to cancel.', [
+        onPress: () => alertT('Are you sure?', 'This is your last chance to cancel.', [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Delete for ever', style: 'destructive', onPress: doDelete },
         ]),
@@ -65,7 +78,7 @@ export default function Profile() {
       setDeleting(false);
       const msg = e?.message || 'Please try again, or contact support.';
       if (Platform.OS === 'web') { if (typeof window !== 'undefined') window.alert(msg); }
-      else Alert.alert('Could not delete the account', msg);
+      else alertT('Could not delete the account', msg);
     }
   }
 
@@ -99,12 +112,17 @@ export default function Profile() {
           ))}
         </Section>
 
-        {/* Payment methods */}
-        <Section title={t('Payment Methods')} icon="credit-card" action={t('Add')} onAction={() => router.push('/payment/new')}>
-          {(me?.paymentMethods.length ?? 0) === 0 && <Empty icon="credit-card" label="No payment methods yet. Tap Add to add one." />}
-          {me?.paymentMethods.map((p, i, arr) => (
-            <Row key={p.id} icon="credit-card" title={p.name} subtitle={p.detail} badge={p.isDefault ? 'Default' : undefined} onDelete={() => removePayment(p.id)} last={i === arr.length - 1} />
-          ))}
+        {/* Payment — nothing to save. Bank Alfalah has not enabled card
+            tokenisation for this merchant, so a card cannot be stored and the
+            bank's own secure page is used at every checkout. Offering an
+            "Add card" button here would only ever fail. */}
+        <Section title={t('Payment')} icon="credit-card">
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 16 }}>
+            <Feather name="shield" size={16} color={colors.success} />
+            <Text variant="bodySm" color={colors.textSecondary} style={{ flex: 1, lineHeight: 19 }}>
+              You pay on Bank Alfalah's secure page each time you book. Your card details are never stored in the app.
+            </Text>
+          </View>
         </Section>
 
         {/* Preferred professionals */}
@@ -129,7 +147,10 @@ export default function Profile() {
                 onPress={() => {
                   const next = !favIds.includes(c.id);
                   setFavIds((ids) => next ? [...ids, c.id] : ids.filter((x) => x !== c.id));
-                  cleanersApi.setPreferred(c.id, next).catch(() => {});
+                  cleanersApi.setPreferred(c.id, next).catch((e: any) => {
+                    setFavIds((ids) => (next ? ids.filter((x) => x !== c.id) : [...ids, c.id]));
+                    toastT('Could not update favourites', e?.message || 'Please try again.');
+                  });
                 }}
                 style={[styles.heart, !favIds.includes(c.id) && { backgroundColor: colors.surface }]}
               >
@@ -144,12 +165,12 @@ export default function Profile() {
           {[
             { icon: 'bell', label: t('Notifications'), onPress: () => router.push('/notifications') },
             { icon: 'globe', label: `${t('Language')} · ${langNative}`, onPress: () => router.push('/language') },
-            { icon: 'help-circle', label: t('Help & Support'), onPress: () => Linking.openURL('https://wa.me/923001234567') },
+            { icon: 'help-circle', label: t('Help & Support'), onPress: () => Linking.openURL(LINKS.email) },
             // The acquiring bank requires these to be reachable from the app
             // itself, not only from the website.
-            { icon: 'rotate-ccw', label: t('Cancellation & Refund Policy'), onPress: () => Linking.openURL('https://withurooj.com/refund-policy') },
-            { icon: 'file-text', label: t('Terms & Conditions'), onPress: () => Linking.openURL('https://withurooj.com/terms') },
-            { icon: 'shield', label: t('Privacy Policy'), onPress: () => Linking.openURL('https://withurooj.com/privacy') },
+            { icon: 'rotate-ccw', label: t('Cancellation & Refund Policy'), onPress: () => Linking.openURL(LINKS.refunds) },
+            { icon: 'file-text', label: t('Terms & Conditions'), onPress: () => Linking.openURL(LINKS.terms) },
+            { icon: 'shield', label: t('Privacy Policy'), onPress: () => Linking.openURL(LINKS.privacy) },
           ].map((item, i, arr) => (
             <Pressable key={item.label} style={[styles.settingRow, i < arr.length - 1 && styles.divider]} onPress={item.onPress}>
               <Feather name={item.icon as any} size={18} color={colors.textSecondary} />
@@ -172,7 +193,7 @@ export default function Profile() {
           </Text>
         </Pressable>
 
-        <Text center variant="bodySm" color={colors.textDisabled}>HomeService v1.0 · Pakistan</Text>
+        <Text center variant="bodySm" color={colors.textDisabled}>WithUrooj v1.0 · Pakistan</Text>
       </ScrollView>
     </View>
   );

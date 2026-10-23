@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Text, Button, NavBar } from '../../src/components';
@@ -10,13 +10,15 @@ type Role = 'client' | 'professional';
 
 export default function RolePick() {
   const router = useRouter();
+  // Arrives from the phone step once we know this number has no account yet.
+  const { phone, mode, dev } = useLocalSearchParams<{ phone?: string; mode?: string; dev?: string }>();
   const [role, setRole] = useState<Role>('client');
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <NavBar showLogo bordered={false} />
       <View style={styles.body}>
-        <Text variant="display" center style={{ fontSize: 26 }}>How will you use{'\n'}HomeService?</Text>
+        <Text variant="display" center style={{ fontSize: 26 }}>How will you use WithUrooj?</Text>
         <Text variant="bodyLg" center color={colors.textTertiary} style={{ fontSize: 14, marginTop: 8, marginBottom: 28 }}>
           Choose your account type. You can use the same number for either.
         </Text>
@@ -39,7 +41,13 @@ export default function RolePick() {
         <Button
           label="Continue"
           iconRight="arrow-right"
-          onPress={() => router.push({ pathname: '/(auth)/phone', params: { role } })}
+          onPress={() =>
+            // A code was already sent, so go straight to it; only a direct
+            // visit (no number yet) still needs the phone step.
+            phone
+              ? router.push({ pathname: '/(auth)/otp', params: { phone, role, mode, fb: '0', dev: dev ?? '' } })
+              : router.push({ pathname: '/(auth)/phone', params: { role } })
+          }
           style={{ marginTop: 'auto' }}
         />
       </View>

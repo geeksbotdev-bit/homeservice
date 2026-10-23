@@ -20,7 +20,7 @@
       "package": "com.homeservice.client",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#0B7C82",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
@@ -45,9 +45,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 160,
+          "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#0B7C82"
+          "backgroundColor": "#FFFFFF"
         }
       ],
       "expo-sharing",
@@ -63,7 +63,8 @@
           "photosPermission": "WithUrooj needs access to your photos so you can attach a profile picture, verification documents or job photos.",
           "cameraPermission": "WithUrooj uses the camera for before and after job photos and for identity verification."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},

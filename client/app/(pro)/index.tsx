@@ -9,6 +9,7 @@ import { pro } from '../../src/services/api';
 import { showToast } from '../../src/store/toast';
 import { formatPKR } from '../../src/utils';
 import type { Booking, BookingStatus } from '../../src/data/types';
+import { toastT, trf as tf } from '../../src/i18n';
 
 // What the cleaner does next from each (accepted) status.
 const NEXT: Partial<Record<BookingStatus, { to: BookingStatus; label: string; icon: any }>> = {
@@ -43,7 +44,7 @@ export default function ProJobs() {
       await fn();
     } catch (e: any) {
       // e.g. not verified (403), or a scheduled job claimed by someone else first.
-      showToast('Could not update the job', e?.message || 'Please try again');
+      toastT('Could not update the job', e?.message || 'Please try again');
     }
     await pro.jobs().then(setData).catch(() => {});
     setBusy(null);
@@ -67,7 +68,7 @@ export default function ProJobs() {
   // Block accepting until identity is verified — send them to the verify screen.
   function tryClaim(id: string) {
     if (verif !== 'verified') {
-      showToast('Verify your identity', 'Complete verification to accept jobs');
+      toastT('Verify your identity', 'Complete verification to accept jobs');
       router.push('/(pro)/verify');
       return;
     }
@@ -109,7 +110,7 @@ export default function ProJobs() {
 
           {/* Available scheduled jobs — open pool, first cleaner to claim gets it */}
           {data.available.length > 0 && (
-            <Section title={`Available jobs (${data.available.length})`}>
+            <Section title={tf('Available jobs ({n})', { n: data.available.length })}>
               {data.available.map((b) => (
                 <Card key={b.id} style={{ padding: 16, gap: 12, borderWidth: 1.5, borderColor: colors.primary }}>
                   <View style={[styles.reqTag, { backgroundColor: colors.primary }]}>
@@ -136,7 +137,7 @@ export default function ProJobs() {
 
           {/* Instant requests — broadcast to all cleaners; first to accept wins */}
           {data.requests.length > 0 && (
-            <Section title={`New requests (${data.requests.length})`}>
+            <Section title={tf('New requests ({n})', { n: data.requests.length })}>
               {data.requests.map((b) => (
                 <Card key={b.id} style={{ padding: 16, gap: 12, borderWidth: 1.5, borderColor: colors.accent }}>
                   <View style={styles.reqTag}><Feather name="zap" size={11} color={colors.white} /><Text weight="bold" color={colors.white} style={{ fontSize: 10 }}>INSTANT · FIRST TO ACCEPT</Text></View>
@@ -159,7 +160,7 @@ export default function ProJobs() {
           )}
 
           {/* Active */}
-          <Section title={`Active jobs (${data.active.length})`}>
+          <Section title={tf('Active jobs ({n})', { n: data.active.length })}>
             {data.active.length === 0 ? <Empty label="No active jobs right now" /> : data.active.map((b) => {
               const next = NEXT[b.status];
               return (

@@ -14,7 +14,8 @@ async function mpgs(path: string, method: 'GET' | 'POST' | 'PUT', body?: any): P
   return r.json().catch(() => ({}));
 }
 
-const MERCHANT_LOGO = process.env.BAFL_MERCHANT_LOGO || '';
+const MERCHANT_LOGO = process.env.BAFL_MERCHANT_LOGO
+  || 'https://uroojwithus.vercel.app/brand/logo-withurooj-source.png';
 
 /** Create a Hosted Checkout session for an order. */
 export function createCheckoutSession(orderId: string, amount: number, returnUrl: string) {
@@ -25,7 +26,7 @@ export function createCheckoutSession(orderId: string, amount: number, returnUrl
       returnUrl,
       locale: 'en_US',
       merchant: {
-        name: 'uroojwithus',
+        name: 'WithUrooj',
         ...(MERCHANT_LOGO ? { logo: MERCHANT_LOGO } : {}),
       },
       // Hide the optional/clutter sections so the page stays clean.
@@ -35,7 +36,7 @@ export function createCheckoutSession(orderId: string, amount: number, returnUrl
         shipping: 'HIDE',
       },
     },
-    order: { id: orderId, amount: amount.toFixed(2), currency: 'PKR', description: 'uroojwithus cleaning booking' },
+    order: { id: orderId, amount: amount.toFixed(2), currency: 'PKR', description: 'WithUrooj cleaning booking' },
   });
 }
 
@@ -43,6 +44,11 @@ export function createCheckoutSession(orderId: string, amount: number, returnUrl
 export function retrieveOrder(orderId: string) {
   return mpgs(`/order/${orderId}`, 'GET');
 }
+
+
+
+
+
 
 /** Refund a captured order (partial or full) via the gateway. */
 export function refundOrder(orderId: string, txnId: string, amount: number) {
@@ -65,7 +71,7 @@ export function refundOrder(orderId: string, txnId: string, amount: number) {
 export function launcherHtml(sessionId: string, cancelUrl: string, returnUrl: string) {
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>uroojwithus — Secure Payment</title>
+<title>WithUrooj — Secure Payment</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#F7F9FA;color:#1F2937}
@@ -94,7 +100,7 @@ export function launcherHtml(sessionId: string, cancelUrl: string, returnUrl: st
 </script></head>
 <body>
   <div class="top">
-    <div class="brand"><div class="mark">UW</div><b>uroojwithus</b></div>
+    <div class="brand"><div class="mark">WU</div><b>WithUrooj</b></div>
     <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Secure payment</div>
   </div>
   <div id="err"></div>

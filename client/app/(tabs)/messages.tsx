@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Text } from '../../src/components';
@@ -8,15 +8,17 @@ import { colors, radius, shadow } from '../../src/theme/theme';
 import { chat } from '../../src/services/api';
 import { refreshUnread } from '../../src/store/unread';
 import type { Conversation } from '../../src/data/types';
+import { useLiveRefresh } from '../../src/hooks/useLiveRefresh';
 
 export default function Messages() {
   const router = useRouter();
   const [list, setList] = useState<Conversation[] | null>(null);
 
-  useFocusEffect(useCallback(() => {
-    chat.conversations().then(setList);
+  // New messages should land while the list is open, not on the next visit.
+  useLiveRefresh(useCallback(() => {
+    chat.conversations().then(setList).catch(() => {});
     refreshUnread();
-  }, []));
+  }, []), 5000);
 
   return (
     <View style={styles.root}>

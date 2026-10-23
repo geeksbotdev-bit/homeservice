@@ -55,9 +55,13 @@ export async function restoreSession(): Promise<void> {
 }
 
 export function setAuthToken(token: string | null) {
+  // A different token means a different person. Drop the stored role so the
+  // previous account's role can never route the new one — a customer signing in
+  // after a cleaner used this device was landing on the cleaner dashboard.
+  // The caller sets the real role from the server right after this.
+  if (token !== authToken) { userRole = null; persist(ROLE_KEY, null); }
   authToken = token;
   persist(TOKEN_KEY, token);
-  if (!token) { userRole = null; persist(ROLE_KEY, null); }
 }
 
 export function setUserRole(role: string | null) {

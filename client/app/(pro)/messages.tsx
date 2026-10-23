@@ -33,7 +33,7 @@ export default function ProMessages() {
       ) : list.length === 0 ? (
         <View style={{ alignItems: 'center', paddingTop: 60, gap: 10 }}>
           <Feather name="message-circle" size={30} color={colors.border} />
-          <Text color={colors.textDisabled} center>No conversations yet.{'\n'}Chats appear once you accept a job.</Text>
+          <Text color={colors.textDisabled} center>No conversations yet. Chats appear once you accept a job.</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>

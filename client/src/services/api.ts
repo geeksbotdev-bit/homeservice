@@ -15,13 +15,15 @@ export const auth = {
   requestOtp: (phone: string) =>
     USE_MOCKS
       ? delay({ ok: true, ttl: 300, devCode: '123456' })
-      : request<{ ok: boolean; ttl: number; devCode?: string }>('/auth/request-otp', { method: 'POST', body: { phone } }),
+      : request<{ ok: boolean; ttl: number; exists?: boolean; devCode?: string }>('/auth/request-otp', { method: 'POST', body: { phone } }),
 
   // POST /auth/verify-otp { phone, code, role } -> { token, user, isNew }
-  verifyOtp: (phone: string, code: string, role: 'client' | 'professional' = 'client') =>
+  // `mode: 'signup'` makes the server refuse a number that already has an
+  // account, instead of quietly signing the person in to it.
+  verifyOtp: (phone: string, code: string, role: 'client' | 'professional' = 'client', mode?: string) =>
     USE_MOCKS
       ? delay({ token: 'mock-jwt-token', user: { ...USER, role }, isNew: false })
-      : request<AuthResult>('/auth/verify-otp', { method: 'POST', body: { phone, code, role } }),
+      : request<AuthResult>('/auth/verify-otp', { method: 'POST', body: { phone, code, role, mode } }),
 
   // POST /auth/google { idToken, name, email, role? } -> { token, user, isNew }
   // `role` is sent on SIGNUP only — on login the account keeps its stored role.
@@ -182,7 +184,7 @@ export const user = {
   me: () => (USE_MOCKS ? delay(USER, 200) : request<User>('/me')),
 
   // PATCH /me { name?, email?, location?, phone?, avatarUrl?, gender?, dob? }
-  update: (patch: { name?: string; email?: string; location?: string; phone?: string; avatarUrl?: string; gender?: string; dob?: string }) =>
+  update: (patch: { name?: string; email?: string; location?: string; phone?: string; avatarUrl?: string; gender?: string; dob?: string; lang?: string; lat?: number; lng?: number }) =>
     USE_MOCKS ? delay({ ok: true }) : request<User>('/me', { method: 'PATCH', body: patch }),
 
   // DELETE /me — permanently delete the account and its personal data.
@@ -195,7 +197,7 @@ export const user = {
     USE_MOCKS ? delay({ ...USER, role } as User) : request<User>('/me/role', { method: 'POST', body: { role } }),
 
   // POST /me/addresses
-  addAddress: (a: { label: string; line1: string; area: string; isDefault?: boolean }) =>
+  addAddress: (a: { label: string; line1: string; area: string; isDefault?: boolean ; lat?: number; lng?: number }) =>
     USE_MOCKS ? delay({ id: String(Date.now()), ...a }) : request('/me/addresses', { method: 'POST', body: a }),
 
   // DELETE /me/addresses/:id
@@ -213,6 +215,12 @@ export const user = {
 
 // ─── Professional (cleaner) app ────────────────────────────────────────
 export const pro = {
+  // GET /pro/services -> what this cleaner offers + the full catalogue
+  services: () =>
+    request<{ selected: string[]; services: { id: string; name: string; category: string; icon: string }[] }>('/pro/services'),
+  // PUT /pro/services { serviceIds } -> replaces the whole selection
+  setServices: (serviceIds: string[]) =>
+    request<{ selected: string[] }>('/pro/services', { method: 'PUT', body: { serviceIds } }),
   // GET /pro/profile
   profile: () =>
     USE_MOCKS ? delay(CLEANERS[0]) : request<Cleaner>('/pro/profile'),
@@ -289,6 +297,7 @@ export const payments = {
   // in-app checkout's own redirect.
   verify: (bookingId: string) =>
     USE_MOCKS ? delay({ status: 'paid' as string }) : request<{ status: string }>(`/payments/verify?bookingId=${encodeURIComponent(bookingId)}`),
+
 };
 
 export const FEE_PCT = HOMESERVICE_FEE_PCT;

@@ -6,8 +6,9 @@ import { Feather, FontAwesome } from '@expo/vector-icons';
 import { Text, NavBar, ServiceIcon } from '../src/components';
 import { colors, radius, shadow } from '../src/theme/theme';
 import { services as servicesApi } from '../src/services/api';
-import { formatPKR } from '../src/utils';
+import { formatPKR, servicePrice } from '../src/utils';
 import type { Service } from '../src/data/types';
+import { ph } from '../src/i18n';
 
 export default function AllServices() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function AllServices() {
       <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
         <View style={styles.search}>
           <Feather name="search" size={17} color={colors.textDisabled} />
-          <TextInput style={styles.input} placeholder="Search services…" placeholderTextColor={colors.textDisabled} value={query} onChangeText={setQuery} />
+          <TextInput style={styles.input} placeholder={ph('Search services…')} placeholderTextColor={colors.textDisabled} value={query} onChangeText={setQuery} />
           {query.length > 0 && <Pressable onPress={() => setQuery('')} hitSlop={8}><Feather name="x" size={16} color={colors.textDisabled} /></Pressable>}
         </View>
         {/* Category chips */}
@@ -68,7 +69,7 @@ export default function AllServices() {
                 </View>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                <Text weight="extrabold" color={colors.primary} style={{ fontSize: 15 }}>{formatPKR(s.basePrice)}</Text>
+                <Text weight="extrabold" color={colors.primary} style={{ fontSize: 15 }}>{servicePrice(s)}</Text>
                 <Feather name="chevron-right" size={18} color={colors.textDisabled} />
               </View>
             </Pressable>

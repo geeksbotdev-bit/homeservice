@@ -7,6 +7,7 @@ import * as Location from 'expo-location';
 import { Text, Button, NavBar, OsmMap } from '../src/components';
 import { colors, radius, shadow } from '../src/theme/theme';
 import { user as userApi } from '../src/services/api';
+import { alertT } from '../src/i18n';
 
 // Default centre: Lahore.
 const DEFAULT = { lat: 31.5204, lng: 74.3587 };
@@ -65,7 +66,12 @@ export default function MapPick() {
 
   async function confirm() {
     setSaving(true);
-    await userApi.update({ location: address }).catch(() => {});
+    try {
+      await userApi.update({ location: address, lat: center.lat, lng: center.lng });
+    } catch (e: any) {
+      alertT('Could not save the location', e?.message || 'Please try again.');
+      return;
+    }
     setSaving(false);
     (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
   }

@@ -41,7 +41,7 @@ export function NavBar({ title, showLogo, rightIcon, onRight, onBack, bordered =
 
 const styles = StyleSheet.create({
   bar: {
-    height: 56,
+    height: 68,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

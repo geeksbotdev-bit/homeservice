@@ -29,6 +29,9 @@ model User {
   avatarUrl      String?         // data URI or hosted URL
   gender         String?
   dob            String?
+  lang           String          @default("en") // en | ur | roman — follows the account, not the device
+  lat            Float?          // last detected position, for map previews
+  lng            Float?
   addresses      Address[]
   paymentMethods PaymentMethod[]
   bookings       Booking[]
@@ -68,6 +71,10 @@ model Address {
   line1     String
   area      String
   isDefault Boolean @default(false)
+  // Pinned on the map (or from the GPS fix) so the booking shows a real map
+  // and the cleaner can navigate to the exact spot, not just a text address.
+  lat       Float?
+  lng       Float?
 }
 
 model PaymentMethod {
@@ -78,7 +85,9 @@ model PaymentMethod {
   name      String
   detail    String
   isDefault Boolean @default(false)
+  createdAt DateTime @default(now())
 }
+
 
 model Service {
   id            String    @id // slug e.g. "bathroom"
@@ -98,8 +107,15 @@ model Service {
   gradientEnd   String
   description   String
   includedJson  String    @default("[]") // JSON array of strings
+  // The sheet prices the document services but not the cleaning ones, so those
+  // are quoted after a site visit. basePrice stays 0 and the app says so
+  // instead of showing PKR 0.
+  quoteOnly     Boolean   @default(false)
+  sheetGroup    String    @default("")  // category heading from the price sheet
+  sortOrder     Int       @default(0)
   addOns        AddOn[]
   bookings      Booking[]
+  cleaners      CleanerService[]
 }
 
 model AddOn {
@@ -138,6 +154,21 @@ model Cleaner {
   verifAt     DateTime?
   bookings   Booking[]
   favoritedBy Favorite[]
+  // Which services this cleaner actually offers. A cleaner with none set has
+  // not chosen yet and is treated as offering everything, so existing accounts
+  // keep working until they pick.
+  services   CleanerService[]
+}
+
+/** A service a cleaner offers. Jobs are only shown to cleaners who offer them. */
+model CleanerService {
+  cleanerId String
+  cleaner   Cleaner @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([cleanerId, serviceId])
+  @@index([serviceId])
 }
 
 model Booking {

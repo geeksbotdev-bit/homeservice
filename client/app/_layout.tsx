@@ -15,7 +15,7 @@ import {
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { BookingProvider } from '../src/store/booking';
-import { LanguageProvider, restoreLang } from '../src/store/lang';
+import { LanguageProvider, restoreLang, adoptUserLang, setLangSync } from '../src/store/lang';
 import { Toaster } from '../src/components';
 import { AppTabBar } from '../src/components/AppTabBar';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
@@ -39,9 +39,11 @@ export default function RootLayout() {
   // user isn't briefly bounced to Welcome on native (where restore is async).
   const [sessionReady, setSessionReady] = useState(false);
   useEffect(() => {
-    // The saved language loads with the session so the first screen is already
-    // in the right language (native storage is async — no English flash).
-    Promise.all([restoreLang(), restoreSession()])
+    // Restore the session first: whether anyone is signed in decides the
+    // language. Signed out (first run, sign-up) is always English; signed in
+    // starts from that account's cached choice, confirmed by /me below.
+    restoreSession()
+      .then(() => restoreLang(isAuthed()))
       // Re-read the role from the server: the account is the source of truth,
       // so a cleaner always comes back as a cleaner after a refresh. Failures
       // (offline) keep the stored role rather than blocking startup.
@@ -55,7 +57,10 @@ export default function RootLayout() {
             new Promise<null>((r) => setTimeout(() => r(null), 2500)),
           ]);
           if (me?.role) setUserRole(me.role === 'pro' || me.role === 'professional' ? 'pro' : 'client');
-        } catch { /* offline — keep the persisted role */ }
+          // The account is the authority on language too, so this corrects the
+          // cached guess (e.g. after the user switched on another device).
+          if (me?.id) await adoptUserLang(me.id, me.lang);
+        } catch { /* offline — keep the persisted role and language */ }
       })
       .finally(() => setSessionReady(true));
   }, []);
@@ -64,6 +69,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
+
+  // Persist a language change onto the account (fire-and-forget: the local
+  // choice has already applied, so a failed save must not block the UI).
+  useEffect(() => {
+    setLangSync((l) => { userApi.update({ lang: l }).catch(() => {}); });
+    return () => setLangSync(null);
+  }, []);
 
   // A 401 (expired/stale session) sends the user back to sign-in.
   useEffect(() => {
@@ -138,6 +150,7 @@ export default function RootLayout() {
               <Stack.Screen name="rate/[bookingId]" options={{ presentation: 'modal' }} />
               <Stack.Screen name="address/new" options={{ presentation: 'modal' }} />
               <Stack.Screen name="payment/new" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="navigate/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="profile/edit" options={{ presentation: 'modal' }} />
               <Stack.Screen name="language" options={{ presentation: 'modal' }} />
               <Stack.Screen name="pay-webview" options={{ gestureEnabled: false }} />

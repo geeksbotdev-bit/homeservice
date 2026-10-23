@@ -9,10 +9,12 @@ import { auth } from '../../src/services/api';
 import { setAuthToken, setUserRole } from '../../src/services/client';
 import { confirmOtp } from '../../src/services/phoneAuth';
 import { showToast } from '../../src/store/toast';
+import { adoptUserLang } from '../../src/store/lang';
+import { toastT } from '../../src/i18n';
 
 export default function Otp() {
   const router = useRouter();
-  const { phone, role, fb, dev } = useLocalSearchParams<{ phone?: string; role?: string; fb?: string; dev?: string }>();
+  const { phone, role, fb, dev, mode } = useLocalSearchParams<{ phone?: string; role?: string; fb?: string; dev?: string; mode?: string }>();
   const isFirebaseOtp = fb === '1';
   const LENGTH = 6; // 6-digit codes (backend + Firebase)
   const [digits, setDigits] = useState<string[]>(Array(LENGTH).fill(''));
@@ -63,7 +65,7 @@ export default function Otp() {
         const { idToken, phone: fbPhone, name } = await confirmOtp(code);
         res = await auth.firebase(idToken, fbPhone ?? e164, name, role ? wantRole : undefined);
       } else {
-        res = await auth.verifyOtp(e164, code, wantRole);
+        res = await auth.verifyOtp(e164, code, wantRole, mode);
       }
       setAuthToken(res.token);
       // Always persist what the SERVER says the account is — otherwise the app
@@ -71,11 +73,14 @@ export default function Otp() {
       const serverRole = res.user?.role;
       const pro = serverRole === 'pro' || serverRole === 'professional';
       setUserRole(pro ? 'pro' : 'client');
+      // Apply the language saved on this account. A brand-new sign-up has
+      // none, so registration stays in English.
+      if (res.user?.id) await adoptUserLang(res.user.id, res.user.lang);
       setLoading(false);
       // The account's own role always wins. Say so when it differs from the
       // button they came in on, instead of silently landing on the other app.
       if (!res.isNew && role && (wantRole === 'professional') !== pro) {
-        showToast(
+        toastT(
           'Signed in to your existing account',
           pro ? 'This number is registered as a cleaner' : 'This number is registered as a customer',
         );
@@ -196,7 +201,7 @@ export default function Otp() {
         <View style={styles.note}>
           <Feather name="shield" size={16} color={colors.primary} />
           <Text variant="bodySm" weight="medium" color={colors.primary700} style={{ flex: 1, fontSize: 12 }}>
-            HomeService will never call to ask for your code.
+            WithUrooj will never call to ask for your code.
           </Text>
         </View>
       </View>

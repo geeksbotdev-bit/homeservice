@@ -29,7 +29,7 @@ function baseHtml(lat: number, lng: number) {
 <script>
   var map = L.map('map',{zoomControl:false,attributionControl:false,dragging:true,scrollWheelZoom:true,doubleClickZoom:true,touchZoom:true}).setView([${lat},${lng}],14);
   // Esri World Street Map — English (latin) labels, no API key required.
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19}).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   L.control.zoom({position:'bottomright'}).addTo(map);
   var youIcon = L.divIcon({className:'',html:'<div style="position:relative"><div class="pw"></div><div style="position:relative;width:16px;height:16px;border-radius:50%;background:#0B7C82;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div></div>',iconSize:[16,16],iconAnchor:[8,8]});
   var you = L.marker([${lat},${lng}],{icon:youIcon}).addTo(map);

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import path from 'path';
+import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import { prisma } from './db.js';
@@ -97,7 +98,10 @@ app.post('/auth/request-otp', wrap(async (req, res) => {
   });
   const smsConfigured = !!process.env.SMS_API_KEY;
   // TODO: when SMS_API_KEY is set, send `code` via the PK SMS gateway here.
-  ok(res, { ok: true, ttl: OTP_TTL_MS / 1000, ...(smsConfigured ? {} : { devCode: code }) });
+  // Tells the app whether this number already has an account, so somebody who
+  // is already registered is never asked 'customer or cleaner?' again.
+  const exists = !!(await findUserByPhone(normalized));
+  ok(res, { ok: true, ttl: OTP_TTL_MS / 1000, exists, ...(smsConfigured ? {} : { devCode: code }) });
 }));
 
 /**
@@ -112,7 +116,7 @@ function wantedRole(role?: string | null): 'pro' | 'client' | null {
 }
 
 app.post('/auth/verify-otp', wrap(async (req, res) => {
-  const { phone, code, role } = req.body as { phone?: string; code?: string; role?: string };
+  const { phone, code, role, mode } = req.body as { phone?: string; code?: string; role?: string; mode?: string };
   const normalized = normalizePhone(phone);
   if (!normalized) return res.status(400).json({ error: 'Phone number required' });
 
@@ -131,6 +135,26 @@ app.post('/auth/verify-otp', wrap(async (req, res) => {
   const wanted = wantedRole(role);
   let user = await findUserByPhone(normalized);
   const isNew = !user;
+
+  // One number, one account. Someone going through "create account" with a
+  // number that already has one is told so, rather than being quietly signed
+  // in to it — they may be trying to register a second, separate account.
+  if (user && mode === 'signup') {
+    return res.status(409).json({
+      error: 'This number already has an account. Please log in instead.',
+      code: 'ACCOUNT_EXISTS',
+    });
+  }
+
+  // And the other way round: "log in" must not quietly create an account. A
+  // mistyped digit would otherwise hand someone a brand-new empty account and
+  // look like their data had vanished.
+  if (!user && mode === 'login') {
+    return res.status(404).json({
+      error: 'No account found with this number. Please create an account first.',
+      code: 'NO_ACCOUNT',
+    });
+  }
   if (!user) {
     user = await prisma.user.create({
       data: { name: '', phone: normalized, role: wanted === 'pro' ? 'pro' : 'client', location: '' },
@@ -142,7 +166,7 @@ app.post('/auth/verify-otp', wrap(async (req, res) => {
 }));
 
 app.post('/auth/google', wrap(async (req, res) => {
-  const { idToken, name, email, role } = req.body as { idToken?: string; name?: string; email?: string; role?: string };
+  const { idToken, name, email, role, mode } = req.body as { idToken?: string; name?: string; email?: string; role?: string; mode?: string };
   const decoded = idToken ? await verifyIdToken(idToken) : null;
   const resolvedEmail = decoded?.email ?? email;
   const resolvedName = decoded?.name ?? name ?? 'Google User';
@@ -211,7 +235,8 @@ async function serviceRating(serviceId: string) {
 }
 
 app.get('/services', wrap(async (_req, res) => {
-  const list = await prisma.service.findMany({ include: { addOns: true } });
+  // Sheet order, so the catalogue reads the way the client's own list does.
+  const list = await prisma.service.findMany({ include: { addOns: true }, orderBy: { sortOrder: 'asc' } });
   const out = await Promise.all(list.map(async (s) => ({ ...serializeService(s), ...(await serviceRating(s.id)) })));
   ok(res, out);
 }));
@@ -268,7 +293,8 @@ app.get('/route', wrap(async (req, res) => {
   const hit = routeCache.get(key);
   if (hit && Date.now() - hit.at < ROUTE_TTL) return ok(res, hit.body);
 
-  const url = `${ROUTING_URL}/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+  // `steps` gives the turn-by-turn manoeuvres the in-app navigation view lists.
+  const url = `${ROUTING_URL}/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&steps=true`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6000);
   try {
@@ -276,11 +302,30 @@ app.get('/route', wrap(async (req, res) => {
     const j: any = await r.json();
     const route = j?.routes?.[0];
     if (!route) throw new Error('no route');
+    // Flatten OSRM's legs/steps into a plain list the app can render as
+    // directions. Each step keeps its own start point so the view can
+    // highlight the one the cleaner is currently on.
+    const steps = (route.legs ?? []).flatMap((leg: any) =>
+      (leg.steps ?? []).map((st: any) => {
+        const m = st.maneuver ?? {};
+        return {
+          type: m.type ?? 'continue',          // turn | new name | arrive | …
+          modifier: m.modifier ?? null,        // left | right | slight left | …
+          road: st.name || '',
+          distance: Math.round(st.distance ?? 0),
+          duration: Math.round(st.duration ?? 0),
+          lat: m.location?.[1] ?? null,
+          lng: m.location?.[0] ?? null,
+        };
+      }),
+    ).filter((st: any) => st.lat != null);
+
     const body = {
       // [lat, lng] pairs, ready for Leaflet
       coords: (route.geometry?.coordinates ?? []).map((p: [number, number]) => [p[1], p[0]]),
       distance: Math.round(route.distance ?? 0),      // metres
       duration: Math.round(route.duration ?? 0),      // seconds
+      steps,
     };
     routeCache.set(key, { at: Date.now(), body });
     if (routeCache.size > 500) routeCache.delete(routeCache.keys().next().value!);
@@ -309,7 +354,7 @@ app.get('/me', requireAuth, wrap(async (req, res) => {
 }));
 
 app.patch('/me', requireAuth, wrap(async (req, res) => {
-  const { name, email, location, phone, avatarUrl, gender, dob } = req.body as any;
+  const { name, email, location, phone, avatarUrl, gender, dob, lang, lat, lng } = req.body as any;
   // Store the phone in the same canonical shape auth uses, and never let two
   // accounts end up holding the same number.
   const nextPhone = phone !== undefined ? normalizePhone(phone) : undefined;
@@ -331,6 +376,12 @@ app.patch('/me', requireAuth, wrap(async (req, res) => {
       ...(avatarUrl !== undefined ? { avatarUrl: avatarUrl || null } : {}),
       ...(gender !== undefined ? { gender: gender || null } : {}),
       ...(dob !== undefined ? { dob: dob || null } : {}),
+      // The language choice belongs to the account, so it follows the user to
+      // any device. Anything unrecognised falls back to English.
+      ...(lang !== undefined ? { lang: ['en', 'ur', 'roman'].includes(lang) ? lang : 'en' } : {}),
+      // Coordinates travel with the location label so map previews are real.
+      ...(Number.isFinite(lat) ? { lat } : {}),
+      ...(Number.isFinite(lng) ? { lng } : {}),
     },
   });
   ok(res, serializeUser(await loadUser(req.userId!)));
@@ -387,10 +438,17 @@ app.post('/me/role', requireAuth, wrap(async (req, res) => {
 }));
 
 app.post('/me/addresses', requireAuth, wrap(async (req, res) => {
-  const { label, line1, area, isDefault } = req.body as any;
+  const { label, line1, area, isDefault, lat, lng } = req.body as any;
   if (isDefault) await prisma.address.updateMany({ where: { userId: req.userId! }, data: { isDefault: false } });
-  const a = await prisma.address.create({ data: { userId: req.userId!, label, line1, area, isDefault: !!isDefault } });
-  ok(res, { id: a.id, label: a.label, line1: a.line1, area: a.area, isDefault: a.isDefault });
+  const a = await prisma.address.create({
+    data: {
+      userId: req.userId!, label, line1, area, isDefault: !!isDefault,
+      // Kept so the booking can show the real spot on a map.
+      ...(Number.isFinite(lat) ? { lat } : {}),
+      ...(Number.isFinite(lng) ? { lng } : {}),
+    },
+  });
+  ok(res, { id: a.id, label: a.label, line1: a.line1, area: a.area, isDefault: a.isDefault, lat: a.lat ?? undefined, lng: a.lng ?? undefined });
 }));
 
 app.delete('/me/addresses/:id', requireAuth, wrap(async (req, res) => {
@@ -429,9 +487,24 @@ const liveCleanerWhere: any = {
 // Real, online, onboarded cleaners only — the ones who can actually tap Accept.
 const realProWhere: any = { ...liveCleanerWhere, userId: { not: null } };
 
-// Broadcast a new open request to every real cleaner (first to accept wins).
-async function broadcastRequest(bookingId: string, serviceName: string, scheduled: boolean) {
-  const cleaners = await prisma.cleaner.findMany({ where: realProWhere, select: { userId: true } });
+/**
+ * Tell the cleaners who can actually take this job (first to accept wins).
+ *
+ * Only those who offer the service are notified — pinging a car-detailer about
+ * a water-tank clean trains everyone to ignore the alerts. A cleaner who has
+ * not chosen any services yet is still included, so nobody silently stops
+ * receiving work.
+ */
+async function broadcastRequest(bookingId: string, serviceName: string, scheduled: boolean, serviceId?: string | null) {
+  const cleaners = await prisma.cleaner.findMany({
+    where: {
+      ...realProWhere,
+      ...(serviceId
+        ? { OR: [{ services: { none: {} } }, { services: { some: { serviceId } } }] }
+        : {}),
+    },
+    select: { userId: true },
+  });
   const title = scheduled ? 'New scheduled job' : 'New job request';
   const body = scheduled ? `A customer scheduled ${serviceName}. Open to accept.` : `A customer needs ${serviceName} now. Open to accept.`;
   for (const c of cleaners) if (c.userId) await notify(c.userId, 'bell', title, body, { bookingId });
@@ -514,6 +587,36 @@ app.patch('/pro/profile', requireAuth, wrap(async (req, res) => {
   ok(res, serializeCleaner(updated));
 }));
 
+/**
+ * The services this cleaner offers.
+ *
+ * An empty list means "not chosen yet" and is treated as offering everything,
+ * so a cleaner who signed up before this existed keeps seeing work.
+ */
+app.get('/pro/services', requireAuth, wrap(async (req, res) => {
+  const me = await getMyCleaner(req.userId!);
+  const [mine, all] = await Promise.all([
+    prisma.cleanerService.findMany({ where: { cleanerId: me.id }, select: { serviceId: true } }),
+    prisma.service.findMany({ orderBy: { sortOrder: 'asc' } }),
+  ]);
+  ok(res, {
+    selected: mine.map((r) => r.serviceId),
+    services: all.map((sv) => ({ id: sv.id, name: sv.name, category: sv.category, icon: sv.icon })),
+  });
+}));
+
+app.put('/pro/services', requireAuth, wrap(async (req, res) => {
+  const me = await getMyCleaner(req.userId!);
+  const ids: string[] = Array.isArray(req.body?.serviceIds) ? req.body.serviceIds : [];
+  // Ignore anything that is not a real service, so a stale app cannot write junk.
+  const valid = await prisma.service.findMany({ where: { id: { in: ids } }, select: { id: true } });
+  await prisma.$transaction([
+    prisma.cleanerService.deleteMany({ where: { cleanerId: me.id } }),
+    prisma.cleanerService.createMany({ data: valid.map((v) => ({ cleanerId: me.id, serviceId: v.id })) }),
+  ]);
+  ok(res, { selected: valid.map((v) => v.id) });
+}));
+
 app.get('/pro/jobs', requireAuth, wrap(async (req, res) => {
   const me = await getMyCleaner(req.userId!);
   // Jobs assigned to THIS logged-in cleaner.
@@ -521,10 +624,14 @@ app.get('/pro/jobs', requireAuth, wrap(async (req, res) => {
     where: { cleanerId: me.id }, include: bookingInclude, orderBy: { createdAt: 'desc' },
   });
   const list = mine.map(serializeBooking);
-  // Open, unclaimed requests broadcast to every cleaner — first to accept wins.
+  // Open, unclaimed requests — first to accept wins. A cleaner only sees the
+  // services they offer; choosing none means they have not picked yet, so they
+  // still see everything rather than an empty screen.
+  const offers = await prisma.cleanerService.findMany({ where: { cleanerId: me.id }, select: { serviceId: true } });
+  const onlyMine = offers.length > 0 ? { serviceId: { in: offers.map((o) => o.serviceId) } } : {};
   const [instantPool, scheduledPool] = await Promise.all([
-    prisma.booking.findMany({ where: { cleanerId: null, scheduledType: 'now', status: 'confirmed' }, include: bookingInclude, orderBy: { createdAt: 'desc' } }),
-    prisma.booking.findMany({ where: { cleanerId: null, scheduledType: 'later', status: 'confirmed' }, include: bookingInclude, orderBy: { createdAt: 'asc' } }),
+    prisma.booking.findMany({ where: { cleanerId: null, scheduledType: 'now', status: 'confirmed', ...onlyMine }, include: bookingInclude, orderBy: { createdAt: 'desc' } }),
+    prisma.booking.findMany({ where: { cleanerId: null, scheduledType: 'later', status: 'confirmed', ...onlyMine }, include: bookingInclude, orderBy: { createdAt: 'asc' } }),
   ]);
   ok(res, {
     // Instant requests waiting for the first cleaner to accept.
@@ -571,7 +678,7 @@ app.post('/pro/bookings/:id/reject', requireAuth, wrap(async (req, res) => {
   const b = await prisma.booking.findUnique({ where: { id: req.params.id } });
   if (b && b.cleanerId === me.id && !['on_the_way', 'arrived', 'in_progress', 'completed'].includes(b.status)) {
     await prisma.booking.update({ where: { id: b.id }, data: { cleanerId: null, accepted: false } });
-    await broadcastRequest(b.id, b.serviceName, b.scheduledType === 'later');
+    await broadcastRequest(b.id, b.serviceName, b.scheduledType === 'later', b.serviceId);
   }
   ok(res, { ok: true, reassignedTo: null });
 }));
@@ -793,6 +900,26 @@ app.get('/bookings', requireAuth, wrap(async (req, res) => {
 app.get('/bookings/:id', requireAuth, wrap(async (req, res) => {
   const b = await prisma.booking.findUnique({ where: { id: req.params.id }, include: bookingInclude });
   if (!b) return res.status(404).json({ error: 'Booking not found' });
+
+  // A booking carries the customer's name, address and phone, so only the two
+  // people involved may read it: the customer who placed it, and the cleaner
+  // doing it. An unclaimed job stays readable by any verified cleaner, because
+  // that is the open pool they are deciding whether to accept.
+  if (b.userId !== req.userId) {
+    // Role, not the profile row: a cleaner's Cleaner record is created lazily
+    // on their first /pro/ call, and until then they would be refused here.
+    const [viewer, mine] = await Promise.all([
+      prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } }),
+      prisma.cleaner.findFirst({ where: { userId: req.userId! }, select: { id: true } }),
+    ]);
+    const isPro = viewer?.role === 'pro' || viewer?.role === 'professional';
+    const isMyJob = !!mine && b.cleanerId === mine.id;
+    const isOpenPool = isPro && b.cleanerId === null;
+    if (!isMyJob && !isOpenPool) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+  }
+
   ok(res, serializeBooking(b));
 }));
 
@@ -805,6 +932,20 @@ app.post('/bookings', requireAuth, wrap(async (req, res) => {
   // the re-submit AFTER someone has already accepted.)
   const cleanerId = isScheduled ? null : await resolveCleanerId(body.cleaner);
   const addOnNames: string[] = Array.isArray(body.addOns) ? body.addOns : [];
+
+  // Where the job actually is. Without this the cleaner's map has no
+  // destination, so it shows bare streets with no pin and no route. Prefer what
+  // the app sent (the address the customer picked), then the pin on their
+  // default address, then the position detected for the account.
+  const me = await prisma.user.findUnique({
+    where: { id: req.userId! },
+    include: { addresses: true },
+  });
+  const defaultAddr = me?.addresses.find((a) => a.isDefault) ?? me?.addresses[0];
+  const custLat = Number.isFinite(body.custLat) ? body.custLat
+    : (defaultAddr?.lat ?? me?.lat ?? null);
+  const custLng = Number.isFinite(body.custLng) ? body.custLng
+    : (defaultAddr?.lng ?? me?.lng ?? null);
 
   // Upsert by id when the client re-submits the same booking (confirm → invoice).
   const data = {
@@ -819,6 +960,7 @@ app.post('/bookings', requireAuth, wrap(async (req, res) => {
     quantity: body.quantity ?? 1,
     total: body.total ?? 0,
     cleanerId,
+    ...(custLat != null && custLng != null ? { custLat, custLng } : {}),
   };
 
   let booking;
@@ -848,7 +990,7 @@ app.post('/bookings', requireAuth, wrap(async (req, res) => {
     if (!cleanerId) {
       await notify(req.userId!, 'search', isScheduled ? 'Scheduled — finding a cleaner' : 'Finding a cleaner',
         `We're sending your ${data.serviceName} request to cleaners nearby…`, { bookingId: booking.id });
-      await broadcastRequest(booking.id, data.serviceName, isScheduled);
+      await broadcastRequest(booking.id, data.serviceName, isScheduled, booking.serviceId);
     }
   }
 
@@ -1017,7 +1159,7 @@ async function activateAfterPayment(bookingId: string, txnId: string) {
     await prisma.booking.update({ where: { id: bookingId }, data: { status: 'confirmed' } });
     if (!b.cleanerId) {
       await notify(b.userId, 'search', 'Finding a cleaner', `Payment received — we're sending your ${b.serviceName} request to cleaners nearby…`, { bookingId });
-      await broadcastRequest(bookingId, b.serviceName, b.scheduledType === 'later');
+      await broadcastRequest(bookingId, b.serviceName, b.scheduledType === 'later', b.serviceId);
     }
   }
 }
@@ -1087,6 +1229,7 @@ app.get('/payments/verify', requireAuth, wrap(async (req, res) => {
   }
   return ok(res, { status: p.status });
 }));
+
 
 // 3) Gateway returns here → verify → activate booking → bounce back to the app.
 app.get('/payments/return', wrap(async (req, res) => {
@@ -1167,18 +1310,42 @@ async function resolveCleanerId(cleaner: any): Promise<string | null> {
 }
 
 // ─── Admin portal ────────────────────────────────────────────────────
-const ADMIN_KEY = process.env.ADMIN_KEY || 'homeservice-admin';
+/**
+ * The admin key.
+ *
+ * This guards customer names, phone numbers, addresses and cleaners' uploaded
+ * CNIC images. The old default was committed to the repository, so anyone who
+ * read the source could open the panel on the live site. There is no default
+ * in production any more: with no ADMIN_KEY set the panel refuses everyone,
+ * which is the only safe way to fail.
+ */
+const IS_PROD = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+const ADMIN_KEY = process.env.ADMIN_KEY || (IS_PROD ? '' : 'dev-admin');
+
+if (IS_PROD && !ADMIN_KEY) {
+  console.error('[admin] ADMIN_KEY is not set — the admin portal is disabled.');
+}
 
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!ADMIN_KEY) {
+    return res.status(503).json({ error: 'Admin portal is not configured on this server.' });
+  }
   const key = req.headers['x-admin-key'] || req.query.key;
-  if (key !== ADMIN_KEY) return res.status(401).json({ error: 'Invalid admin key' });
+  // Compare in a way that does not leak the key's length through timing.
+  const a = Buffer.from(String(key ?? ''));
+  const b = Buffer.from(ADMIN_KEY);
+  const okKey = a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!okKey) return res.status(401).json({ error: 'Invalid admin key' });
   next();
 }
 
 // Validate the admin passcode (portal login).
 app.post('/admin/login', (req, res) => {
   const { password } = req.body as { password?: string };
-  if (password !== ADMIN_KEY) return res.status(401).json({ error: 'Wrong passcode' });
+  if (!ADMIN_KEY) return res.status(503).json({ error: 'Admin portal is not configured on this server.' });
+  const a = Buffer.from(String(password ?? ''));
+  const b = Buffer.from(ADMIN_KEY);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(401).json({ error: 'Wrong passcode' });
   res.json({ ok: true });
 });
 

@@ -7,10 +7,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { Text, Button, Card, StatusBadge, NavBar, LiveMap } from '../../src/components';
 import { useShareLocation } from '../../src/hooks/useShareLocation';
 import { colors, radius, shadow } from '../../src/theme/theme';
+import { openNavigation } from '../../src/services/navigate';
 import { pro } from '../../src/services/api';
 import { showToast } from '../../src/store/toast';
 import { formatPKR } from '../../src/utils';
 import type { Booking, BookingStatus } from '../../src/data/types';
+import { toastT } from '../../src/i18n';
 
 const NEXT: Partial<Record<BookingStatus, { to: BookingStatus; label: string; icon: any }>> = {
   confirmed: { to: 'on_the_way', label: 'On My Way', icon: 'navigation' },
@@ -55,12 +57,12 @@ export default function ProJobDetail() {
   /** Capture + upload one photo. Returns its URL, or null if cancelled/failed. */
   async function addPhoto(kind: 'before' | 'after', camera = true): Promise<string | null> {
     const list = kind === 'before' ? before : after;
-    if (list.length >= MAX_PHOTOS) { showToast('Limit reached', `Up to ${MAX_PHOTOS} photos`); return null; }
+    if (list.length >= MAX_PHOTOS) { toastT('Limit reached', `Up to ${MAX_PHOTOS} photos`); return null; }
     try {
       const perm = camera
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted && Platform.OS !== 'web') { showToast('Permission needed', 'Allow camera access to add the photo'); return null; }
+      if (!perm.granted && Platform.OS !== 'web') { toastT('Permission needed', 'Allow camera access to add the photo'); return null; }
       const res = camera
         ? await ImagePicker.launchCameraAsync({ base64: true, quality: 0.5 })
         : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.5 });
@@ -71,7 +73,7 @@ export default function ProJobDetail() {
       (kind === 'before' ? setBefore : setAfter)((p) => [...p, url]);
       return url;
     } catch (e: any) {
-      showToast('Upload failed', e?.message || 'Could not upload the photo');
+      toastT('Upload failed', e?.message || 'Could not upload the photo');
       return null;
     } finally {
       setUploading(null);
@@ -98,8 +100,15 @@ export default function ProJobDetail() {
   const next = b.accepted ? NEXT[b.status] : undefined;
 
   // In-app navigation: re-centre the live route on our map (no external app).
+  /** Open the in-app route view: map, live ETA and the list of turns. */
   function navigate() {
+    if (b?.custLat != null && b?.custLng != null) {
+      router.push(`/navigate/${b.id}`);
+      return;
+    }
+    // No pin on the job yet — re-fit the in-app view and say why.
     setFocusTick((t) => t + 1);
+    toastT('No map pin for this job', 'Use the address shown below to find the customer.');
   }
 
   async function run(fn: () => Promise<any>, back = false) {
@@ -110,7 +119,7 @@ export default function ProJobDetail() {
     } catch (e: any) {
       // e.g. the job was just claimed by another cleaner, or a photo is missing
       failed = true;
-      showToast('Could not update the job', e?.message || 'Please try again');
+      toastT('Could not update the job', e?.message || 'Please try again');
     }
     setBusy(false);
     if (back && !failed) router.replace('/(pro)');

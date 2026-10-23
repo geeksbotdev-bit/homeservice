@@ -19,6 +19,7 @@ export default function Payment() {
 
   const bookingId = id ?? 'HS-2025-00125';
 
+
   // Real card payment via Bank Alfalah (MPGS).
   // On web the gateway CANNOT be shown inside the app: its hosted page sends
   // `X-Frame-Options: SAMEORIGIN` / `frame-ancestors 'self'`, so both an iframe
@@ -64,7 +65,8 @@ export default function Payment() {
           {service && <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 4 }}>{service.name}{selectedAddOns.length ? ` + ${selectedAddOns.length} add-on` : ''} · {draft.quantity} {service.unitNoun}{draft.quantity > 1 ? 's' : ''}</Text>}
         </Card>
 
-        {/* Card-only payment via the secure gateway */}
+        {/* Bank Alfalah has not enabled tokenisation for this merchant, so a
+            card cannot be stored — every payment goes through the bank's page. */}
         <View style={styles.cardInfo}>
           <View style={styles.methodIcon}><Feather name="credit-card" size={18} color={colors.primary} /></View>
           <View style={{ flex: 1 }}>
@@ -84,7 +86,7 @@ export default function Payment() {
         {/* Price breakdown */}
         <Card style={{ padding: 16 }}>
           <Row label="Subtotal" value={formatPKR(subtotal)} />
-          <Row label="HomeService fee (5%)" value={formatPKR(fee)} />
+          <Row label="WithUrooj fee (5%)" value={formatPKR(fee)} />
           <View style={styles.totalRow}>
             <Text weight="extrabold" style={{ fontSize: 16 }}>Total</Text>
             <Text weight="extrabold" color={colors.primary} style={{ fontSize: 18 }}>{formatPKR(total)}</Text>
@@ -100,7 +102,12 @@ export default function Payment() {
       {/* Sticky pay button — always through the Bank Alfalah card gateway.
           The cleaner search only begins after the gateway confirms payment. */}
       <View style={styles.footer}>
-        <Button label={`Pay ${formatPKR(total)} with Card`} icon="lock" onPress={payWithCard} loading={processing} />
+        <Button
+          label={`Pay ${formatPKR(total)}`}
+          icon="lock"
+          onPress={payWithCard}
+          loading={processing}
+        />
       </View>
 
       {/* Processing overlay */}
@@ -138,6 +145,7 @@ const styles = StyleSheet.create({
   payHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.surface },
   defBadge: { backgroundColor: colors.primary50, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  radioOn: { borderColor: colors.primary },
   radioActive: { borderColor: colors.primary },
   radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: colors.primary },
   chargeNote: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.warningBg, borderRadius: radius.lg, padding: 12 },

@@ -20,7 +20,11 @@ interface Props {
   onRoute?: (r: { eta: number; distance: number }) => void;
 }
 
-const DEFAULT = { lat: 31.5204, lng: 74.3587 }; // Lahore
+// Karachi city centre. Only ever used to give Leaflet a valid starting view
+// while a real position loads — when nothing is known the map is covered by
+// the "waiting for location" overlay below, so this is never presented as
+// though it were the job's location.
+const DEFAULT = { lat: 24.8607, lng: 67.0011 };
 
 // Leaflet page for the live-tracking map. Kept as a single string so it can be
 // handed to a WebView (native) or an iframe (web) without a build step.
@@ -53,10 +57,7 @@ function buildHtml(center: Pt, initial: string, apiUrl: string) {
   // Esri's light canvas: clean, ride-hailing style, and no API key. CARTO's
   // basemaps now stamp "API KEY REQUIRED" across unkeyed tiles, so not those.
   // Streets go on top of the canvas so road names stay readable.
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-    {maxZoom:19,attribution:'© Esri'}).addTo(map);
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
-    {maxZoom:19,opacity:.9}).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 
   var carIcon = L.divIcon({className:'car',iconSize:[34,34],iconAnchor:[17,17],html:
     '<svg width="34" height="34" viewBox="0 0 34 34"><g id="rot" transform="rotate(0 17 17)">'+
@@ -179,6 +180,9 @@ function buildHtml(center: Pt, initial: string, apiUrl: string) {
 
 export function LiveMap({ pro, cust, height = 240, etaText, cleanerName, live = true, focusTick = 0, onRoute }: Props) {
   const center = pro || cust || DEFAULT;
+  // With neither end known there is nothing truthful to draw, so say so
+  // instead of showing an unrelated city's streets with no pins on them.
+  const hasAnyPoint = !!(pro || cust);
   const initialRef = useRef(JSON.stringify({ pro: pro || null, cust: cust || null }));
   const htmlRef = useRef(buildHtml(center, initialRef.current, API_URL));
   const webRef = useRef<WebView>(null);
@@ -248,8 +252,18 @@ export function LiveMap({ pro, cust, height = 240, etaText, cleanerName, live = 
           {!!cleanerName && <Text variant="bodySm" color={colors.textTertiary}>{cleanerName}</Text>}
         </View>
       )}
-      {live && (
+      {live && hasAnyPoint && (
         <View style={styles.live}><View style={styles.liveDot} /><Text weight="bold" color={colors.white} style={{ fontSize: 10, letterSpacing: 0.5 }}>LIVE</Text></View>
+      )}
+
+      {!hasAnyPoint && (
+        <View style={styles.waiting}>
+          <Feather name="map-pin" size={20} color={colors.textTertiary} />
+          <Text weight="semibold" style={{ fontSize: 13, marginTop: 8 }}>Waiting for location</Text>
+          <Text variant="bodySm" color={colors.textTertiary} center style={{ marginTop: 2, paddingHorizontal: 24, lineHeight: 17 }}>
+            The map appears once the job's location is known.
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -257,6 +271,7 @@ export function LiveMap({ pro, cust, height = 240, etaText, cleanerName, live = 
 
 const styles = StyleSheet.create({
   eta: { position: 'absolute', top: 12, left: 12, backgroundColor: colors.white, borderRadius: radius.lg, padding: 11, minWidth: 120, ...shadow.card },
+  waiting: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.93)' },
   live: { position: 'absolute', top: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.error, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 10 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#fff' },
 });

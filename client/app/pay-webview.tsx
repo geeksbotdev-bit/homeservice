@@ -35,6 +35,7 @@ export default function PayWebView() {
     return () => clearInterval(t);
   }, [id]);
 
+
   // Returns false to stop the WebView loading the app URL and navigate in-app.
   function intercept(navUrl: string): boolean {
     if (navUrl.includes('/booking/finding')) { finish(); return false; }

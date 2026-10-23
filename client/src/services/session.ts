@@ -1,6 +1,7 @@
 import { setAuthToken } from './client';
 import { signOutFirebase } from './firebaseAuth';
 import { resetUnread } from '../store/unread';
+import { resetLang } from '../store/lang';
 
 // Screens/stores register here so a sign-out wipes the in-memory state that
 // belongs to the person leaving (a booking draft, cached lists, …). Without
@@ -27,6 +28,7 @@ export async function logout() {
     }
   } catch { /* ignore */ }
   resetUnread();
+  resetLang();  // next person on this device starts in English
   resetHandlers.forEach((fn) => { try { fn(); } catch { /* keep signing out */ } });
   try { await signOutFirebase(); } catch { /* ignore */ }
 }

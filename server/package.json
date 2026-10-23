@@ -13,7 +13,8 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
-    "db:local": "node prisma/local-schema.mjs && prisma db push --schema prisma/schema.local.prisma && prisma generate --schema prisma/schema.local.prisma"
+    "db:local": "node prisma/local-schema.mjs && prisma db push --schema prisma/schema.local.prisma && prisma generate --schema prisma/schema.local.prisma",
+    "db:services": "tsx prisma/seed-services.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",

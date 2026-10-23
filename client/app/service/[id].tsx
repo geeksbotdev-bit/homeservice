@@ -7,7 +7,7 @@ import { Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons
 import { Text, Button, Stars } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
 import { services as servicesApi, type Review } from '../../src/services/api';
-import { formatPKR } from '../../src/utils';
+import { formatPKR, servicePrice } from '../../src/utils';
 import { useBooking } from '../../src/store/booking';
 import { useLang } from '../../src/store/lang';
 import type { Service } from '../../src/data/types';
@@ -53,7 +53,7 @@ export default function ServiceDetail() {
                 <Pressable onPress={() => setFav((f) => !f)} style={styles.heroBtn}>
                   <FontAwesome name={fav ? 'heart' : 'heart-o'} size={15} color={colors.white} />
                 </Pressable>
-                <Pressable style={styles.heroBtn} onPress={() => Share.share({ message: `Check out ${service.name} on HomeService — from ${formatPKR(service.basePrice)}. Book in 60 seconds!` }).catch(() => {})}>
+                <Pressable style={styles.heroBtn} onPress={() => Share.share({ message: `Check out ${service.name} on WithUrooj — from ${servicePrice(service)}. Book in 60 seconds!` }).catch(() => {})}>
                   <Feather name="share-2" size={16} color={colors.white} />
                 </Pressable>
               </View>
@@ -94,7 +94,7 @@ export default function ServiceDetail() {
           <LinearGradient colors={[colors.primary50, '#F0FAFA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.priceCard}>
             <View style={{ flex: 1 }}>
               <Text variant="caption" color={colors.textTertiary} style={{ fontSize: 11, letterSpacing: 0.5 }}>BASE PRICE</Text>
-              <Text weight="extrabold" color={colors.primary} style={{ fontSize: 30, letterSpacing: -1, marginTop: 2 }}>{formatPKR(service.basePrice)}</Text>
+              <Text weight="extrabold" color={colors.primary} style={{ fontSize: 30, letterSpacing: -1, marginTop: 2 }}>{servicePrice(service)}</Text>
               <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 4 }} noTranslate>
                 {tf('{unit} · supplies included', { unit: t(service.unitLabel) })}
               </Text>
@@ -108,7 +108,9 @@ export default function ServiceDetail() {
           {/* Description */}
           <Text variant="bodyLg" color={colors.textSecondary} style={{ fontSize: 14, lineHeight: 24, marginTop: 18 }}>{service.description}</Text>
 
-          {/* What's included */}
+          {/* What's included — omitted when the catalogue lists nothing yet */}
+          {service.included.length > 0 && (
+          <>
           <Text variant="h3" style={{ fontSize: 15, marginTop: 22, marginBottom: 14 }}>What's included</Text>
           <View style={{ gap: 11 }}>
             {service.included.map((item, i) => {
@@ -124,6 +126,8 @@ export default function ServiceDetail() {
               );
             })}
           </View>
+          </>
+          )}
 
           {/* Quantity */}
           <View style={styles.divider} />
@@ -131,7 +135,9 @@ export default function ServiceDetail() {
             <View style={{ flex: 1 }}>
               <Text variant="h3" style={{ fontSize: 15 }} noTranslate>{tf('Number of {noun}s', { noun: t(service.unitNoun) })}</Text>
               <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 3 }} noTranslate>
-                {tf('{price} per {noun}', { price: formatPKR(service.basePrice), noun: t(service.unitNoun) })}
+                {service.quoteOnly
+                  ? t('Price confirmed after the cleaner sees the job')
+                  : tf('{price} per {noun}', { price: formatPKR(service.basePrice), noun: t(service.unitNoun) })}
               </Text>
             </View>
             <View style={styles.stepper}>
@@ -145,7 +151,9 @@ export default function ServiceDetail() {
             </View>
           </View>
 
-          {/* Add-ons */}
+          {/* Add-ons — only when the service actually has some */}
+          {service.addOns.length > 0 && (
+          <>
           <View style={styles.divider} />
           <Text variant="h3" style={{ fontSize: 15 }}>Add-ons <Text variant="bodySm" color={colors.textDisabled}>(optional)</Text></Text>
           <Text variant="bodySm" color={colors.textTertiary} style={{ marginTop: 4, marginBottom: 14 }}>Enhance your clean — tap to select</Text>
@@ -166,6 +174,8 @@ export default function ServiceDetail() {
               );
             })}
           </View>
+          </>
+          )}
 
           {/* Reviews */}
           {reviews.length > 0 && (
@@ -204,10 +214,22 @@ export default function ServiceDetail() {
       {/* Sticky footer */}
       <View style={styles.footer}>
         <View style={{ flex: 1 }}>
-          <Text variant="caption" color={colors.textDisabled} style={{ fontSize: 11 }}>TOTAL</Text>
-          <Text weight="extrabold" style={{ fontSize: 24, letterSpacing: -0.5 }}>{formatPKR(total)}</Text>
+          <Text variant="caption" color={colors.textDisabled} style={{ fontSize: 11 }}>
+            {service.quoteOnly ? 'ESTIMATE' : 'TOTAL'}
+          </Text>
+          {service.quoteOnly ? (
+            <Text weight="bold" style={{ fontSize: 15, letterSpacing: -0.2 }}>Quoted on site</Text>
+          ) : (
+            <Text weight="extrabold" style={{ fontSize: 24, letterSpacing: -0.5 }}>{formatPKR(total)}</Text>
+          )}
         </View>
-        <Button label="Continue" iconRight="arrow-right" onPress={next} fullWidth={false} style={{ paddingHorizontal: 30, height: 52 }} />
+        <Button
+          label={service.quoteOnly ? 'Request a quote' : 'Continue'}
+          iconRight="arrow-right"
+          onPress={next}
+          fullWidth={false}
+          style={{ paddingHorizontal: service.quoteOnly ? 20 : 30, height: 52 }}
+        />
       </View>
     </View>
   );

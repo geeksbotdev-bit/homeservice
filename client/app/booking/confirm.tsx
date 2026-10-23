@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Modal, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Rect, Line, Path, Circle, Ellipse } from 'react-native-svg';
-import { Text, Button, NavBar } from '../../src/components';
+import { Text, Button, NavBar, OsmMap } from '../../src/components';
 import { colors, radius, shadow } from '../../src/theme/theme';
 import { bookings as bookingsApi, user as userApi, payments } from '../../src/services/api';
 import { formatPKR } from '../../src/utils';
@@ -17,13 +17,32 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function Confirm() {
   const router = useRouter();
-  const { draft, selectedAddOns, subtotal, fee, total } = useBooking();
+  const { draft, selectedAddOns, subtotal, fee, total, setAddress } = useBooking();
   const [me, setMe] = useState<User | null>(null);
   const [payIdx, setPayIdx] = useState(0);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => { userApi.me().then(setMe); }, []);
+
+  // The job address comes from the account: the default address if one is
+  // saved, otherwise the location we detected. Nothing is hard-coded, so a new
+  // user sees their own place and can change it from the picker below.
+  const savedAddress = useMemo(() => {
+    const def = me?.addresses?.find((a) => a.isDefault) ?? me?.addresses?.[0];
+    if (def) return [def.line1, def.area].filter(Boolean).join(', ');
+    return me?.location ?? '';
+  }, [me]);
+  useEffect(() => { if (savedAddress) setAddress(savedAddress); }, [savedAddress, setAddress]);
+
+  // Where to centre the map: the default address's pin if it has one, else the
+  // position we detected for the account.
+  const pin = useMemo(() => {
+    const def = me?.addresses?.find((a) => a.isDefault) ?? me?.addresses?.[0];
+    if (def?.lat !== undefined && def?.lng !== undefined) return { lat: def.lat, lng: def.lng };
+    if (me?.lat !== undefined && me?.lng !== undefined) return { lat: me.lat, lng: me.lng };
+    return null;
+  }, [me]);
 
   const service = draft.service;
   if (!service) {
@@ -32,7 +51,7 @@ export default function Confirm() {
         <NavBar title="Confirm Booking" />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 14 }}>
           <Feather name="calendar" size={40} color={colors.border} />
-          <Text center color={colors.textTertiary}>Your booking session was reset.{'\n'}Please pick a service to start again.</Text>
+          <Text center color={colors.textTertiary}>Your booking session was reset. Please pick a service to start again.</Text>
           <Button label="Browse services" fullWidth={false} onPress={() => router.replace('/(tabs)')} style={{ paddingHorizontal: 28 }} />
         </View>
       </SafeAreaView>
@@ -59,6 +78,10 @@ export default function Confirm() {
       dateLabel: draft.mode === 'later' ? draft.dateLabel : todayLabel,
       timeLabel: draft.mode === 'later' ? draft.timeLabel : 'Now',
       address: draft.address,
+      // Send the pin with the booking so the cleaner's map has a destination
+      // from the moment the job is created, not only if the customer later
+      // taps "share location".
+      ...(pin ? { custLat: pin.lat, custLng: pin.lng } : {}),
       total,
       serviceId: service!.id, quantity: draft.quantity, addOnIds: draft.addOnIds, mode: draft.mode,
     });
@@ -121,13 +144,17 @@ export default function Confirm() {
         {/* Service Address */}
         <Card label="Service Address">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 }}>
-            <View style={styles.mapThumb}><MapThumb /></View>
+            <View style={styles.mapThumb}><MapThumb lat={pin?.lat} lng={pin?.lng} /></View>
             <View style={{ flex: 1 }}>
-              <Text weight="bold" style={{ fontSize: 15, marginBottom: 2 }}>{me?.location ?? 'Your location'}</Text>
-              <Text variant="bodySm" color={colors.textTertiary} numberOfLines={2} style={{ marginBottom: 8 }}>{draft.address}</Text>
+              <Text weight="bold" style={{ fontSize: 15, marginBottom: 2 }}>{me?.location || 'Set your location'}</Text>
+              <Text variant="bodySm" color={colors.textTertiary} numberOfLines={2} style={{ marginBottom: 8 }}>
+                {draft.address || savedAddress || 'No address saved yet — add one so your cleaner can find you.'}
+              </Text>
               <Pressable onPress={() => router.push('/location')} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Feather name="map-pin" size={12} color={colors.primary} />
-                <Text variant="bodySm" weight="semibold" color={colors.primary}>Change address</Text>
+                <Text variant="bodySm" weight="semibold" color={colors.primary}>
+                  {savedAddress ? 'Change address' : 'Add address'}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -255,19 +282,21 @@ function Line2({ title, sub, value, border }: { title: string; sub: string; valu
 function Trust({ icon, label }: { icon: any; label: string }) {
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Feather name={icon} size={13} color={colors.success} /><Text variant="bodySm" weight="medium" color={colors.textTertiary} style={{ fontSize: 11 }}>{label}</Text></View>;
 }
-function MapThumb() {
-  return (
-    <Svg width={76} height={76} viewBox="0 0 76 76">
-      <Rect width="76" height="76" fill="#F0ECE3" />
-      <Line x1="0" y1="25" x2="76" y2="25" stroke="white" strokeWidth="3.5" />
-      <Line x1="0" y1="50" x2="76" y2="50" stroke="white" strokeWidth="3.5" />
-      <Line x1="25" y1="0" x2="25" y2="76" stroke="white" strokeWidth="3.5" />
-      <Line x1="51" y1="0" x2="51" y2="76" stroke="white" strokeWidth="3.5" />
-      <Rect x="28" y="28" width="20" height="19" rx="2" fill="#B3DFE2" />
-      <Path d="M38 17 C38 17 31 24 31 29 a7 7 0 0 0 14 0 C45 24 38 17 38 17Z" fill="#0B7C82" />
-      <Circle cx="38" cy="29" r="2.5" fill="white" />
-    </Svg>
-  );
+/**
+ * A real map of the service address.
+ *
+ * Falls back to a plain pin only while we have no coordinates for the account
+ * yet — drawing a fake street grid there would imply a location we don't know.
+ */
+function MapThumb({ lat, lng }: { lat?: number; lng?: number }) {
+  if (lat === undefined || lng === undefined) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+        <Feather name="map-pin" size={22} color={colors.textDisabled} />
+      </View>
+    );
+  }
+  return <OsmMap latitude={lat} longitude={lng} zoom={16} />;
 }
 
 const styles = StyleSheet.create({

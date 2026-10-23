@@ -6,12 +6,15 @@ import { Feather, FontAwesome } from '@expo/vector-icons';
 import { Text, Button, Card, StatusBadge, NavBar, LiveMap, ConfirmDialog } from '../../src/components';
 import { useShareLocation } from '../../src/hooks/useShareLocation';
 import { colors, radius, shadow } from '../../src/theme/theme';
+import { openNavigation } from '../../src/services/navigate';
 import { bookings as bookingsApi, user as userApi, cleaners as cleanersApi } from '../../src/services/api';
 import { showToast } from '../../src/store/toast';
 import { downloadReceipt, methodLabel } from '../../src/receipt';
 import type { InvoiceData } from '../../src/invoice';
 import { formatPKR } from '../../src/utils';
+import { FEE_PCT } from '../../src/services/api';
 import type { Booking, BookingStatus } from '../../src/data/types';
+import { toastT } from '../../src/i18n';
 
 const ETA_TOTAL = 300; // seconds — live ETA countdown once the cleaner is en route
 
@@ -23,6 +26,16 @@ const TIMELINE: { key: BookingStatus; label: string; icon: any }[] = [
   { key: 'completed', label: 'Service completed', icon: 'star' },
 ];
 const ORDER: BookingStatus[] = ['confirmed', 'on_the_way', 'arrived', 'in_progress', 'completed'];
+
+/** A short, readable reference. The raw cuid means nothing to a customer. */
+function bookingRef(id: string) {
+  return 'Booking #' + id.slice(-6).toUpperCase();
+}
+
+/** A short invoice number. The raw cuid is unusable on a printed document. */
+function invoiceRef(id: string) {
+  return 'INV-' + new Date().getFullYear() + '-' + id.slice(-6).toUpperCase();
+}
 
 export default function BookingDetail() {
   const router = useRouter();
@@ -48,7 +61,10 @@ export default function BookingDetail() {
     if (!b?.cleaner) return;
     const next = !fav;
     setFav(next);
-    cleanersApi.setPreferred(b.cleaner.id, next).catch(() => {});
+    cleanersApi.setPreferred(b.cleaner.id, next).catch((e: any) => {
+      setFav(!next);                       // the heart goes back to the truth
+      toastT('Could not update favourites', e?.message || 'Please try again.');
+    });
   }
 
   // Initial load + poll the backend every 4s so status changes made by the
@@ -105,7 +121,7 @@ export default function BookingDetail() {
     return (
       <View style={styles.root}>
         <SafeAreaView edges={['top']} style={styles.header}>
-          <NavBar title={b.id} bordered={false} />
+          <NavBar title={bookingRef(b.id)} bordered={false} />
         </SafeAreaView>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           {/* Radar */}
@@ -158,6 +174,11 @@ export default function BookingDetail() {
 
   // Live-tracking derived values
   const activeTracking = ['on_the_way', 'arrived', 'in_progress'].includes(b.status);
+  // Once a cleaner is assigned there is something real to show — where the job
+  // is, and the cleaner's last known position. Waiting until they set off left
+  // a grey placeholder on a booking that is already live.
+  const showMap = !!b.cleaner && !cancelled && b.status !== 'completed'
+    && (activeTracking || b.status === 'confirmed');
   const etaText =
     b.status === 'on_the_way' ? `${Math.max(1, Math.ceil(etaSec / 60))} min` :
     b.status === 'arrived' ? 'Arrived' :
@@ -174,15 +195,23 @@ export default function BookingDetail() {
     setB({ ...b, status: 'cancelled' });
     const refund = res?.refund ?? 0;
     if (refund > 0) {
-      showToast('Refund initiated', `PKR ${refund.toLocaleString('en-PK')} will be refunded to your payment method within 1 week (30% cancellation fee applied).`);
+      toastT('Refund initiated', `PKR ${refund.toLocaleString('en-PK')} will be refunded to your payment method within 1 week (30% cancellation fee applied).`);
     }
   }
 
   async function receipt() {
     if (!b) return;
     const me = await userApi.me().catch(() => null);
+    // The booking stores one final figure, so the split is derived from it:
+    // total = subtotal + fee, fee = FEE_PCT of subtotal. Working backwards
+    // keeps the three lines adding up exactly, which "fee: 0" did not — it
+    // printed the total as the item price and then a zero fee beneath it.
+    const paid = b.payment?.amount ?? b.total;
+    const subtotal = Math.round(paid / (1 + FEE_PCT));
+    const fee = paid - subtotal;
+
     const data: InvoiceData = {
-      invoiceNo: b.invoiceNo ?? `INV-${b.id}`,
+      invoiceNo: b.invoiceNo ?? invoiceRef(b.id),
       date: b.dateLabel,
       billedName: me?.name || 'Customer',
       billedPhone: me?.phone || '',
@@ -190,10 +219,15 @@ export default function BookingDetail() {
       cleanerName: b.cleaner?.name ?? '—',
       cleanerRating: b.cleaner?.rating ?? 0,
       cleanerJobs: b.cleaner?.jobs ?? 0,
-      items: [{ label: `${b.service}${b.addOns.length ? ` + ${b.addOns.length} add-on` : ''}`, amount: b.total }],
-      subtotal: b.total,
-      fee: 0,
-      total: b.payment?.amount ?? b.total,
+      items: [
+        { label: b.service, amount: subtotal },
+        // Add-ons are priced into the service total, so they are listed for
+        // the record without inventing a figure for each.
+        ...b.addOns.map((a) => ({ label: `  ${a}`, amount: 0 })),
+      ],
+      subtotal,
+      fee,
+      total: paid,
       methodLabel: methodLabel(b.payment?.method),
       txnId: b.payment?.txnId ?? '—',
     };
@@ -205,13 +239,13 @@ export default function BookingDetail() {
   return (
     <View style={styles.root}>
       <SafeAreaView edges={['top']} style={styles.header}>
-        <NavBar title={b.id} bordered={false} />
+        <NavBar title={bookingRef(b.id)} bordered={false} />
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24, gap: 16 }} showsVerticalScrollIndicator={false}>
         {/* Status + map placeholder */}
         <Card style={{ overflow: 'hidden' }}>
-          {b.cleaner && activeTracking ? (
+          {showMap && b.cleaner ? (
             <LiveMap
               // Prefer the location the cleaner shares from the job screen;
               // fall back to their general live position (pushed while online)
@@ -242,6 +276,15 @@ export default function BookingDetail() {
               <StatusBadge status={b.status} />
             </View>
             <Text variant="bodySm" color={colors.textTertiary}>{b.dateLabel} · {b.timeLabel}</Text>
+
+            {/* The customer may be meeting the cleaner somewhere, or checking
+                the pin is right, so give them the same maps handoff. */}
+            {b.custLat != null && b.custLng != null && !cancelled && b.status !== 'completed' && (
+              <Pressable onPress={() => openNavigation({ lat: b.custLat!, lng: b.custLng! }, b.address)} style={styles.openMaps}>
+                <Feather name="navigation" size={13} color={colors.primary} />
+                <Text variant="bodySm" weight="semibold" color={colors.primary}>Open in Maps</Text>
+              </Pressable>
+            )}
           </View>
         </Card>
 
@@ -399,6 +442,7 @@ function PhotoStrip({ label, photos }: { label: string; photos: string[] }) {
 }
 
 const styles = StyleSheet.create({
+  openMaps: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 10, backgroundColor: colors.primary50, borderRadius: radius.md, paddingVertical: 7, paddingHorizontal: 11 },
   root: { flex: 1, backgroundColor: colors.surfaceAlt },
   workPhoto: { width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.surface },
   header: { backgroundColor: colors.white },

@@ -7,6 +7,7 @@ import * as Location from 'expo-location';
 import { Text, Button, NavBar } from '../../src/components';
 import { colors, radius } from '../../src/theme/theme';
 import { user as userApi } from '../../src/services/api';
+import { ph } from '../../src/i18n';
 
 const LABELS = ['Home', 'Office', 'Other'];
 
@@ -36,7 +37,7 @@ export default function NewAddress() {
       try {
         const r = await fetch(
           `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=pk&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`,
-          { headers: { 'Accept': 'application/json', 'User-Agent': 'HomeServiceApp/1.0' } },
+          { headers: { 'Accept': 'application/json', 'User-Agent': 'WithUroojApp/1.0' } },
         );
         const j = await r.json();
         setResults(Array.isArray(j) ? j : []);
@@ -68,7 +69,7 @@ export default function NewAddress() {
           const g = geo[0];
           if (g) { setLine1([g.name || g.street, g.district].filter(Boolean).join(', ')); setArea([g.subregion || g.district, g.city].filter(Boolean).join(', ')); }
         } catch {
-          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`, { headers: { 'User-Agent': 'HomeServiceApp/1.0' } });
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`, { headers: { 'User-Agent': 'WithUroojApp/1.0' } });
           const j = await r.json(); const a = j.address || {};
           setLine1([a.house_number, a.road || a.neighbourhood].filter(Boolean).join(' ') || (j.display_name || '').split(',')[0]);
           setArea([a.suburb || a.neighbourhood, a.city || a.state].filter(Boolean).join(', '));
@@ -97,7 +98,7 @@ export default function NewAddress() {
             <Feather name="search" size={17} color={colors.textDisabled} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search area, street, landmark…"
+              placeholder={ph('Search area, street, landmark…')}
               placeholderTextColor={colors.textDisabled}
               value={query}
               onChangeText={setQuery}
@@ -138,11 +139,11 @@ export default function NewAddress() {
         </Field>
 
         <Field label="Street address">
-          <TextInput style={styles.input} placeholder="House 42, Street 7, Block D" placeholderTextColor={colors.textDisabled} value={line1} onChangeText={setLine1} />
+          <TextInput style={styles.input} placeholder={ph('House 12, Street 4, Block B')} placeholderTextColor={colors.textDisabled} value={line1} onChangeText={setLine1} />
         </Field>
 
         <Field label="Area / City">
-          <TextInput style={styles.input} placeholder="DHA Phase 5, Lahore" placeholderTextColor={colors.textDisabled} value={area} onChangeText={setArea} />
+          <TextInput style={styles.input} placeholder={ph('Gulshan-e-Iqbal, Karachi')} placeholderTextColor={colors.textDisabled} value={area} onChangeText={setArea} />
         </Field>
 
         <Pressable style={styles.checkRow} onPress={() => setIsDefault((v) => !v)}>

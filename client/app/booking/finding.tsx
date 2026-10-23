@@ -11,6 +11,7 @@ import { useBooking } from '../../src/store/booking';
 import { showToast } from '../../src/store/toast';
 import { NearbyMap, type NearbyPin } from '../../src/components/NearbyMap';
 import type { Cleaner, Booking } from '../../src/data/types';
+import { toastT } from '../../src/i18n';
 
 // Karachi city centre — fallback only if we can't read GPS or the booking pin.
 const DEFAULT_LOC = { lat: 24.8607, lng: 67.0011 };
@@ -168,7 +169,7 @@ export default function Finding() {
     setCancelling(false);
     setConfirmCancel(false);
     reset();
-    if ((res?.refund ?? 0) > 0) showToast('Refund initiated', `PKR ${res.refund.toLocaleString('en-PK')} will be refunded within 1 week (30% fee).`);
+    if ((res?.refund ?? 0) > 0) toastT('Refund initiated', `PKR ${res.refund.toLocaleString('en-PK')} will be refunded within 1 week (30% fee).`);
     router.replace('/(tabs)/bookings');
   }
 
@@ -189,7 +190,7 @@ export default function Finding() {
         {/* Transparent nav */}
         <SafeAreaView edges={['top']} style={styles.nav}>
           <Pressable onPress={() => { reset(); router.replace('/(tabs)'); }} style={styles.navBtn}><Feather name="chevron-left" size={18} color={colors.textSecondary} /></Pressable>
-          <View style={styles.navPill}><Logo size={20} /></View>
+          <View style={styles.navPill}><Logo size={30} /></View>
           <View style={{ width: 36 }} />
         </SafeAreaView>
       </View>
