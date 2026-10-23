@@ -270,9 +270,6 @@ export const pro = {
     USE_MOCKS
       ? delay({ average: 0, count: 0, items: [] as ProReview[] })
       : request<{ average: number; count: number; items: ProReview[] }>('/pro/reviews'),
-  // POST /pro/withdraw -> withdraw available balance to payout method
-  withdraw: () =>
-    USE_MOCKS ? delay({ ok: true, amount: 0, to: '' }) : request<{ ok: boolean; amount: number; to: string }>('/pro/withdraw', { method: 'POST' }),
 };
 
 // ─── Payments ──────────────────────────────────────────────────────────

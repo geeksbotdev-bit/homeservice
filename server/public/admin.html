@@ -51,8 +51,8 @@
     background:#fff; border:1px solid var(--line); border-radius:var(--r-xl);
     padding:34px 30px; width:380px; max-width:100%; box-shadow:0 18px 44px rgba(3,56,59,.12);
   }
-  .logo { display:flex; align-items:center; gap:11px; margin-bottom:22px; }
-  .logo img { height:22px; width:auto; }
+  .logo { display:flex; align-items:center; gap:11px; margin-bottom:26px; padding-top:4px; }
+  .logo img { height:46px; width:auto; }
   .logo .mark {
     width:38px; height:38px; border-radius:11px; background:var(--teal); color:#fff;
     display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex:none;
@@ -334,6 +334,7 @@
     <div class="nav-item" data-tab="verifications" onclick="go('verifications')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span> Verifications <span id="verifBadge" class="tag t-orange" style="display:none;margin-left:auto"></span></div>
     <div class="nav-item" data-tab="customers" onclick="go('customers')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M17 20v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9.5" cy="7" r="3.5"/><path d="M22 20v-2a4 4 0 00-3-3.9"/></svg></span> Customers</div>
     <div class="nav-item" data-tab="services" onclick="go('services')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16"/><path d="M6 12V6a3 3 0 016 0"/><path d="M8 16v3M12 16v2M16 16v3"/></svg></span> Services</div>
+    <div class="nav-item" data-tab="payouts" onclick="go('payouts')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span> Payouts</div>
     <div class="nav-item" data-tab="payments" onclick="go('payments')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/><path d="M6 15h4"/></svg></span> Payments</div>
     <div class="nav-sep"></div>
     <div class="nav-item" style="color:var(--red)" onclick="logout()"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></span> Sign out</div>
@@ -430,8 +431,12 @@
   };
   const statusTag = (s) => `<span class="tag ${STATUS_TAG[s]||'t-gray'}">${esc((s||'').replace(/_/g,' '))}</span>`;
 
-  async function api(pathname) {
-    const r = await fetch(API + pathname, { headers: { 'x-admin-key': KEY } });
+  async function api(pathname, opts = {}) {
+    const r = await fetch(API + pathname, {
+      method: opts.method || 'GET',
+      headers: { 'x-admin-key': KEY, ...(opts.body ? { 'Content-Type': 'application/json' } : {}) },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
     if (r.status === 401) { logout(); throw new Error('unauthorized'); }
     return r.json();
   }
@@ -453,7 +458,7 @@
   function go(tab) {
     TAB = tab;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab===tab));
-    const titles = { overview:['Overview','All platform data, live'], bookings:['Bookings','Every booking across the platform'], cleaners:['Cleaners','Registered professionals'], verifications:['Verifications','Identity documents & approvals'], customers:['Customers','Registered customers'], services:['Services','Service catalogue & pricing'], payments:['Payments','Transactions & revenue'] };
+    const titles = { overview:['Overview','All platform data, live'], bookings:['Bookings','Every booking across the platform'], cleaners:['Cleaners','Registered professionals'], verifications:['Verifications','Identity documents & approvals'], customers:['Customers','Registered customers'], services:['Services','Service catalogue & pricing'], payments:['Payments','Transactions & revenue'], payouts:['Payouts','Weekly transfers to cleaners'] };
     document.getElementById('title').textContent = titles[tab][0];
     document.getElementById('subtitle').textContent = titles[tab][1];
     load();
@@ -473,6 +478,8 @@
       if (TAB==='customers') return renderCustomers(await api('/admin/customers'));
       if (TAB==='services') return renderServices(await api('/admin/services'));
       if (TAB==='payments') return renderPayments(await api('/admin/payments'));
+      if (TAB==='payouts') return renderPayouts(await api('/admin/payouts'));
+      if (TAB==='payouts') return renderPayouts(await api('/admin/payouts'));
     } catch(e) { if(e.message!=='unauthorized') C().innerHTML='<div class="empty">Failed to load.</div>'; }
   }
 
@@ -856,6 +863,69 @@
     if (!r.ok) { const j=await r.json().catch(()=>({})); alert(j.error||'Could not delete.'); return; }
     load();
   }
+
+  /**
+   * Weekly payouts owed to cleaners.
+   *
+   * Each row is one cleaner's closed week. The company transfers the money out
+   * of band, then records it here with the bank reference, so there is a trail
+   * of what was paid and for which jobs.
+   */
+  function renderPayouts(d) {
+    const rows = d.payouts || [];
+    const due = rows.filter(p => p.status === 'pending');
+    const pill = st => st === 'paid' ? '<span class="badge ok">Transferred</span>'
+      : st === 'failed' ? '<span class="badge bad">Failed</span>'
+      : '<span class="badge warn">Due</span>';
+
+    const head = `
+      <div class="kpis" style="margin-bottom:18px">
+        <div class="kpi"><div class="k-l">Due this run</div><div class="k-v">${due.length}</div>
+          <div class="k-s">cleaner${due.length === 1 ? '' : 's'} awaiting transfer</div></div>
+        <div class="kpi"><div class="k-l">Amount to transfer</div><div class="k-v">PKR ${(d.dueAmount || 0).toLocaleString('en-PK')}</div>
+          <div class="k-s">across all closed weeks</div></div>
+      </div>`;
+
+    if (!rows.length) {
+      return head + `<div class="card" style="padding:26px;text-align:center;color:var(--text-3)">
+        No payouts yet. A cleaner's first one appears after their first full week of completed jobs.</div>`;
+    }
+
+    return head + `<div class="card"><table>
+      <thead><tr><th>Cleaner</th><th>Period</th><th>Jobs</th><th>Gross</th><th>Commission</th>
+                 <th>To transfer</th><th>Account</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows.map(p => `
+        <tr>
+          <td><b>${p.cleaner}</b></td>
+          <td>${p.period}</td>
+          <td>${p.jobCount}</td>
+          <td>PKR ${p.gross.toLocaleString('en-PK')}</td>
+          <td style="color:var(--text-3)">&minus; PKR ${p.commission.toLocaleString('en-PK')}</td>
+          <td><b>PKR ${p.amount.toLocaleString('en-PK')}</b></td>
+          <td>${p.method ? p.method : '<span style="color:var(--danger)">no account saved</span>'}</td>
+          <td>${pill(p.status)}${p.reference ? `<div class="k-s">${p.reference}</div>` : ''}</td>
+          <td style="white-space:nowrap">${p.status === 'pending'
+            ? `<button class="btn sm" onclick="markPaid('${p.id}')">Mark transferred</button>
+               <button class="btn sm ghost" onclick="markFailed('${p.id}')">Failed</button>`
+            : ''}</td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  async function markPaid(id) {
+    const reference = prompt('Bank transfer reference (the cleaner will see this):');
+    if (reference === null) return;
+    await api('/admin/payouts/' + id, { method: 'PATCH', body: { status: 'paid', reference: reference.trim() } });
+    load();
+  }
+
+  async function markFailed(id) {
+    const note = prompt('What went wrong? (the cleaner will see this)');
+    if (note === null) return;
+    await api('/admin/payouts/' + id, { method: 'PATCH', body: { status: 'failed', note: note.trim() } });
+    load();
+  }
+
   function renderPayments(list) {
     const paid = list.filter(p => p.status === 'paid');
     const refunded = list.filter(p => p.status === 'refunded');

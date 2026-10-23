@@ -6,6 +6,7 @@ import cors from 'cors';
 import { prisma } from './db.js';
 import { signToken, requireAuth, type AuthedRequest } from './auth.js';
 import { verifyIdToken, sendPush } from './firebaseAdmin.js';
+import { gatherDuePayouts, weekStart, weekEnd, nextPayoutDate, periodLabel } from './payouts.js';
 import { serializeService, serializeBooking, serializeCleaner, serializeMessage, serializeUser, serializeVerification } from './serialize.js';
 import { createCheckoutSession, retrieveOrder, launcherHtml, refundOrder } from './bafl.js';
 
@@ -700,7 +701,16 @@ app.post('/pro/bookings/:id/status', requireAuth, wrap(async (req, res) => {
     ...(Array.isArray(beforePhotos) && beforePhotos.length ? { beforePhotos: JSON.stringify(beforePhotos.slice(0, 10)) } : {}),
     ...(Array.isArray(afterPhotos) && afterPhotos.length ? { afterPhotos: JSON.stringify(afterPhotos.slice(0, 10)) } : {}),
   };
-  const b = await prisma.booking.update({ where: { id: req.params.id }, data: { status, ...photos } });
+  const b = await prisma.booking.update({
+    where: { id: req.params.id },
+    data: {
+      status,
+      ...photos,
+      // Stamped once, the first time it completes: the weekly payout run
+      // groups jobs by this, so it must not move if the row is touched later.
+      ...(status === 'completed' && prev?.status !== 'completed' ? { completedAt: new Date() } : {}),
+    },
+  });
   // On completion, increment the cleaner's completed-jobs count (once).
   if (status === 'completed' && prev?.status !== 'completed' && b.cleanerId) {
     await prisma.cleaner.update({ where: { id: b.cleanerId }, data: { jobs: { increment: 1 } } });
@@ -740,36 +750,80 @@ const COMMISSION_PCT = 0.30; // company service fee kept from each job
 
 app.get('/pro/earnings', requireAuth, wrap(async (req, res) => {
   const me = await getMyCleaner(req.userId!);
-  const completed = await prisma.booking.findMany({ where: { status: 'completed', cleanerId: me.id }, orderBy: { createdAt: 'desc' } });
+  await gatherDuePayouts(prisma, COMMISSION_PCT, new Date());
+
+  const completed = await prisma.booking.findMany({
+    where: { status: 'completed', cleanerId: me.id },
+    orderBy: { createdAt: 'desc' },
+  });
   const gross = completed.reduce((s, b) => s + b.total, 0);
-  const fee = Math.round(gross * COMMISSION_PCT);   // company keeps 30%
-  const net = gross - fee;                           // cleaner earns 70%
-  const available = Math.max(0, net - me.withdrawn);
+  const fee = Math.round(gross * COMMISSION_PCT);
+  const net = gross - fee;
+
+  const payouts = await prisma.payout.findMany({
+    where: { cleanerId: me.id },
+    orderBy: { periodStart: 'desc' },
+    take: 26,
+  });
+
+  // This week is still running, so it is an estimate, not a balance they can
+  // ask for — it is transferred after the week closes.
+  const start = weekStart();
+  const thisWeekJobs = completed.filter((b) => b.completedAt && new Date(b.completedAt) >= start);
+  const thisWeekGross = thisWeekJobs.reduce((s, b) => s + b.total, 0);
+  const thisWeek = thisWeekGross - Math.round(thisWeekGross * COMMISSION_PCT);
+
+  const paid = payouts.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
+  const awaiting = payouts.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0);
+
   ok(res, {
-    total: net,               // "Total earned" now means the cleaner's net share
+    total: net,
     gross, fee, net,
     commissionPct: COMMISSION_PCT,
-    withdrawn: me.withdrawn,
-    available,
     jobs: completed.length,
-    items: completed.map((b) => ({ id: b.id, service: b.serviceName, amount: Math.round(b.total * (1 - COMMISSION_PCT)), dateLabel: b.dateLabel })),
+
+    // Weekly cycle
+    thisWeek,
+    thisWeekJobs: thisWeekJobs.length,
+    periodLabel: periodLabel(start, weekEnd(start)),
+    nextPayoutAt: nextPayoutDate().toISOString(),
+    paidToDate: paid,
+    awaitingTransfer: awaiting,
+
+    payouts: payouts.map((p) => ({
+      id: p.id,
+      period: periodLabel(p.periodStart, p.periodEnd),
+      amount: p.amount,
+      gross: p.gross,
+      commission: p.commission,
+      jobCount: p.jobCount,
+      status: p.status,
+      method: p.methodDetail ?? p.methodName ?? null,
+      reference: p.reference ?? null,
+      note: p.note ?? null,
+      paidAt: p.paidAt ?? null,
+    })),
+
+    items: completed.map((b) => ({
+      id: b.id,
+      service: b.serviceName,
+      amount: Math.round(b.total * (1 - COMMISSION_PCT)),
+      dateLabel: b.dateLabel,
+    })),
   });
 }));
 
-// Cleaner withdraws their available balance to their payout method.
-app.post('/pro/withdraw', requireAuth, wrap(async (req, res) => {
-  const me = await getMyCleaner(req.userId!);
-  const completed = await prisma.booking.findMany({ where: { status: 'completed', cleanerId: me.id } });
-  const gross = completed.reduce((s, b) => s + b.total, 0);
-  const net = gross - Math.round(gross * COMMISSION_PCT);
-  const available = Math.max(0, net - me.withdrawn);
-  if (available <= 0) throw httpError(400, 'No balance available to withdraw.');
-  // Requires a payout method on file.
-  const payout = await prisma.paymentMethod.findFirst({ where: { userId: req.userId! } });
-  if (!payout) throw httpError(400, 'Add a payout method first.');
-  await prisma.cleaner.update({ where: { id: me.id }, data: { withdrawn: me.withdrawn + available } });
-  await notify(req.userId!, 'dollar-sign', 'Withdrawal requested', `PKR ${available.toLocaleString('en-PK')} is being transferred to ${payout.name} · ${payout.detail}.`, {});
-  ok(res, { ok: true, amount: available, to: `${payout.name} · ${payout.detail}` });
+/**
+ * Withdrawals are not a thing any more.
+ *
+ * Kept as an explicit refusal rather than a 404 so an older app build tells
+ * the cleaner what actually happens instead of showing a generic error.
+ */
+app.post('/pro/withdraw', requireAuth, wrap(async (_req, res) => {
+  res.status(410).json({
+    error: 'Earnings are transferred automatically every week — there is nothing to withdraw.',
+    code: 'WEEKLY_PAYOUTS',
+  });
 }));
 
 app.post('/push/register', requireAuth, wrap(async (req, res) => {
@@ -1153,7 +1207,7 @@ app.post('/conversations/:bookingId/read', requireAuth, wrap(async (req, res) =>
 
 // Mark a booking paid and (payment-first) activate + broadcast a pending one.
 async function activateAfterPayment(bookingId: string, txnId: string) {
-  await prisma.booking.update({ where: { id: bookingId }, data: { invoiceNo: 'INV-' + bookingId } }).catch(() => {});
+  await prisma.booking.update({ where: { id: bookingId }, data: { invoiceNo: invoiceNoFor(bookingId) } }).catch(() => {});
   const b = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (b && b.status === 'pending') {
     await prisma.booking.update({ where: { id: bookingId }, data: { status: 'confirmed' } });
@@ -1174,7 +1228,7 @@ app.post('/payments', requireAuth, wrap(async (req, res) => {
     update: { method, amount, txnId, status: 'paid' },
   }).catch(() => {});
   await activateAfterPayment(bookingId, txnId);
-  ok(res, { ok: true, txnId, invoiceNo: 'INV-' + bookingId });
+  ok(res, { ok: true, txnId, invoiceNo: invoiceNoFor(bookingId) });
 }));
 
 // ── Bank Alfalah (MPGS) Hosted Checkout ──
@@ -1309,6 +1363,11 @@ async function resolveCleanerId(cleaner: any): Promise<string | null> {
   return null;
 }
 
+/** A short invoice number: INV-2026-A1B2C3. The raw cuid is unreadable. */
+function invoiceNoFor(bookingId: string): string {
+  return `INV-${new Date().getFullYear()}-${bookingId.slice(-6).toUpperCase()}`;
+}
+
 // ─── Admin portal ────────────────────────────────────────────────────
 /**
  * The admin key.
@@ -1348,6 +1407,70 @@ app.post('/admin/login', (req, res) => {
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(401).json({ error: 'Wrong passcode' });
   res.json({ ok: true });
 });
+
+// ─── Payouts (company → cleaner, weekly) ─────────────────────────────
+app.get('/admin/payouts', requireAdmin, wrap(async (req, res) => {
+  // Gather first, so opening the screen always shows every closed week.
+  await gatherDuePayouts(prisma, COMMISSION_PCT, new Date());
+  const status = String(req.query.status || '');
+  const rows = await prisma.payout.findMany({
+    where: status ? { status } : {},
+    include: { cleaner: { select: { name: true, initials: true } } },
+    orderBy: [{ status: 'asc' }, { periodStart: 'desc' }],
+    take: 200,
+  });
+  const pending = rows.filter((p) => p.status === 'pending');
+  ok(res, {
+    dueCount: pending.length,
+    dueAmount: pending.reduce((s, p) => s + p.amount, 0),
+    payouts: rows.map((p) => ({
+      id: p.id,
+      cleaner: p.cleaner?.name ?? '—',
+      initials: p.cleaner?.initials ?? '—',
+      period: periodLabel(p.periodStart, p.periodEnd),
+      gross: p.gross,
+      commission: p.commission,
+      amount: p.amount,
+      jobCount: p.jobCount,
+      status: p.status,
+      method: p.methodDetail ?? null,
+      methodName: p.methodName ?? null,
+      reference: p.reference ?? null,
+      note: p.note ?? null,
+      paidAt: p.paidAt ?? null,
+    })),
+  });
+}));
+
+/** Mark a week's payout as transferred (or record why it failed). */
+app.patch('/admin/payouts/:id', requireAdmin, wrap(async (req, res) => {
+  const { status, reference, note } = req.body as { status?: string; reference?: string; note?: string };
+  if (!['paid', 'failed', 'pending'].includes(String(status))) {
+    throw httpError(400, 'status must be paid, failed or pending');
+  }
+  const p = await prisma.payout.update({
+    where: { id: req.params.id },
+    data: {
+      status: String(status),
+      reference: reference ?? undefined,
+      note: note ?? undefined,
+      paidAt: status === 'paid' ? new Date() : null,
+    },
+    include: { cleaner: { select: { userId: true } } },
+  });
+
+  // Tell the cleaner, with the reference so they can find it on their statement.
+  if (p.cleaner?.userId) {
+    if (status === 'paid') {
+      await notify(p.cleaner.userId, 'dollar-sign', 'Weekly payout sent',
+        `PKR ${p.amount.toLocaleString('en-PK')} for ${periodLabel(p.periodStart, p.periodEnd)} has been transferred${p.reference ? ` (ref ${p.reference})` : ''}.`, {});
+    } else if (status === 'failed') {
+      await notify(p.cleaner.userId, 'alert-circle', 'Payout could not be sent',
+        note || 'Please check the payout account saved on your profile.', {});
+    }
+  }
+  ok(res, { ok: true });
+}));
 
 // Dashboard overview: totals + revenue + recent activity.
 app.get('/admin/overview', requireAdmin, wrap(async (_req, res) => {

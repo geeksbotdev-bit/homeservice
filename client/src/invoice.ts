@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { formatPKR } from './utils';
 import { BUSINESS, legalLine } from './business';
+import { LOGO_PNG } from './logoData';
 
 export interface InvoiceData {
   invoiceNo: string;
@@ -38,16 +39,18 @@ export function buildInvoice(d: InvoiceData): jsPDF {
   // ── Header ──
   // An invoice has to identify the entity being paid, so the brand mark is
   // followed by the registered name, NTN and address.
-  doc.setFillColor(...TEAL);
-  doc.roundedRect(M, 16, 12, 12, 2.5, 2.5, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('WU', M + 6, 24, { align: 'center' });
+  // The real logo. If it ever fails to decode, fall back to the wordmark
+  // alone rather than letting the whole receipt throw.
+  let logoW = 0;
+  try {
+    doc.addImage(LOGO_PNG, 'PNG', M, 14, 20, 16, undefined, 'FAST');
+    logoW = 24;
+  } catch { logoW = 0; }
 
   doc.setTextColor(...INK);
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(19);
-  doc.text(BUSINESS.brand, M + 16, 25);
+  doc.text(BUSINESS.brand, M + logoW, 26);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -110,7 +113,9 @@ export function buildInvoice(d: InvoiceData): jsPDF {
     y += 10;
   };
 
-  d.items.forEach((it) => line(it.label, formatPKR(it.amount)));
+  // An add-on is priced into the service total, so it carries no figure of its
+  // own — a dash says that, where "PKR 0" would read as though it were free.
+  d.items.forEach((it) => line(it.label, it.amount > 0 ? formatPKR(it.amount) : '—'));
   line('Subtotal', formatPKR(d.subtotal), { muted: true });
   line(`${BUSINESS.brand} service fee`, formatPKR(d.fee), { muted: true });
 

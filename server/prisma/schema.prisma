@@ -158,6 +158,42 @@ model Cleaner {
   // not chosen yet and is treated as offering everything, so existing accounts
   // keep working until they pick.
   services   CleanerService[]
+  payouts    Payout[]
+}
+
+/**
+ * A week's earnings, transferred by the company to the cleaner.
+ *
+ * Cleaners are not paid on demand: each Monday the previous week's completed
+ * jobs are gathered into one payout that the company transfers. Keeping it as
+ * a record — rather than a running `withdrawn` total — means a cleaner can see
+ * exactly which jobs a payment covered, and the company can prove it paid.
+ */
+model Payout {
+  id          String   @id @default(cuid())
+  cleanerId   String
+  cleaner     Cleaner  @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
+  /** Monday 00:00 of the week being paid for, and the Sunday that closes it. */
+  periodStart DateTime
+  periodEnd   DateTime
+  /** What the customers paid for the jobs in this period. */
+  gross       Int
+  /** The company's commission on that. */
+  commission  Int
+  /** What the cleaner receives: gross - commission. */
+  amount      Int
+  jobCount    Int
+  status      String   @default("pending") // pending | paid | failed
+  /** Where it was sent, captured at the time so later edits cannot rewrite history. */
+  methodName  String?
+  methodDetail String?
+  reference   String?  // bank/transfer reference once sent
+  note        String?  // why it failed, if it did
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([cleanerId, periodStart])
+  @@index([status])
 }
 
 /** A service a cleaner offers. Jobs are only shown to cleaners who offer them. */
@@ -202,6 +238,9 @@ model Booking {
   proLat        Float?
   proLng        Float?
   proAt         DateTime?
+  /** When the job was finished. Weekly payouts are grouped by this, so it has
+   *  to be the moment of completion, not when the row was last touched. */
+  completedAt   DateTime?
   addOns        BookingAddOn[]
   messages      Message[]
   payment       Payment?
