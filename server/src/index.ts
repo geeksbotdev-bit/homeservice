@@ -1759,6 +1759,52 @@ const page = (file: string) => (_req: express.Request, res: express.Response) =>
 };
 
 app.get('/', page('index.html'));
+/**
+ * The app download.
+ *
+ * The website links here rather than straight at EAS, for two reasons: an EAS
+ * artifact URL expires after about a month (the previous link on the site was
+ * already dead), and while a build is running that page shows a build queue,
+ * which is not what someone who clicked "Download" is looking for.
+ *
+ * Set APK_URL to the current artifact to turn the button into a real download;
+ * with it unset, visitors get a plain explanation instead of a broken link.
+ */
+app.get('/download', (req, res) => {
+  const url = process.env.APK_URL;
+  if (url) return res.redirect(302, url);
+
+  res.type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>WithUrooj — Android app</title>
+<link rel="icon" href="/brand/icon.png"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,system-ui,"Segoe UI",Roboto,Arial,sans-serif}
+  body{min-height:100vh;display:grid;place-items:center;background:#F1F5F9;color:#0F172A;padding:28px}
+  .card{background:#fff;border:1px solid #E2E8F0;border-radius:18px;padding:36px 30px;max-width:460px;
+        text-align:center;box-shadow:0 2px 14px rgba(15,23,42,.06)}
+  img{height:66px;width:auto;margin-bottom:18px}
+  h1{font-size:19px;font-weight:800;margin-bottom:10px}
+  p{color:#64748B;font-size:14px;line-height:1.65}
+  .row{display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+  a.btn{display:inline-block;background:#0B7C82;color:#fff;text-decoration:none;font-weight:700;
+        font-size:14px;padding:12px 20px;border-radius:10px}
+  a.ghost{background:transparent;color:#0B7C82;border:1.5px solid #0B7C82}
+  .note{margin-top:20px;font-size:12px;color:#94A3B8;line-height:1.6}
+</style></head><body>
+  <div class="card">
+    <img src="/brand/logo-withurooj-source.png" alt="WithUrooj"/>
+    <h1>The Android app is being prepared</h1>
+    <p>We are putting the finishing touches to this release. Book through the website in the meantime — everything works the same.</p>
+    <div class="row">
+      <a class="btn" href="/">Book on the website</a>
+      <a class="btn ghost" href="https://wa.me/923333276896">Ask us on WhatsApp</a>
+    </div>
+    <p class="note">iPhone — coming soon.</p>
+  </div>
+</body></html>`);
+});
+
 app.get('/terms', page('terms.html'));
 app.get('/privacy', page('privacy.html'));
 // Both spellings work, so printed/linked material can use either.
