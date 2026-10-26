@@ -18,7 +18,7 @@ export const BUSINESS = {
   city: 'Karachi',
   country: 'Pakistan',
   phone: '+92 333 3276896',
-  email: 'support@withurooj.com',
+  email: 'Info@withurooj.com',
   website: 'uroojwithus.vercel.app',
   currency: 'PKR',
   /** Absolute URL — a PDF renderer cannot resolve a bundled asset. */

@@ -14,5 +14,5 @@ export const LINKS = {
   deleteAccount: `${SITE_URL}/delete-account`,
   whatsapp: 'https://wa.me/923333276896',
   phone: 'tel:+923333276896',
-  email: 'mailto:support@withurooj.com',
+  email: 'mailto:Info@withurooj.com',
 } as const;
