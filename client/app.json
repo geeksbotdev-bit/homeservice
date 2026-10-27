@@ -2,14 +2,14 @@
   "expo": {
     "name": "WithUrooj",
     "slug": "homeservice-client",
-    "scheme": "homeservice",
+    "scheme": "withurooj",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.homeservice.client",
+      "bundleIdentifier": "com.uroojwithus.app",
       "infoPlist": {
         "NSCameraUsageDescription": "WithUrooj uses the camera so cleaners can photograph the site before starting a job and the finished work before completing it. These photos are attached to the booking.",
         "NSPhotoLibraryUsageDescription": "WithUrooj needs access to your photos so you can attach a profile picture, identity documents for verification, or a photo of the job.",
@@ -17,7 +17,7 @@
       }
     },
     "android": {
-      "package": "com.homeservice.client",
+      "package": "com.uroojwithus.app",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",

@@ -61,7 +61,7 @@ export async function signInWithGoogle(): Promise<FbUser | null> {
 
   // Ask Google for an id_token directly (implicit flow): there is no app
   // secret on a phone, so the code-exchange flow has nothing safe to sign with.
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'homeservice' });
+  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'withurooj' });
   const request = new AuthSession.AuthRequest({
     clientId: nativeClientId,
     redirectUri,
